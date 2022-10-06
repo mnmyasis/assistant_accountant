@@ -1,0 +1,2 @@
+class ExchangeCodeOnTokenError(Exception):
+    pass

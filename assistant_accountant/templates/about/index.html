@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %} Стартовая страница {% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    {% with request.resolver_match.view_name as view_name %}
+        <a href="{% url 'dashboard:index' %}">dashboard:index</a>
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

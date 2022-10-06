@@ -31,6 +31,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core.apps.CoreConfig',
+    'dashboard.apps.DashboardConfig',
+    'users.apps.UsersConfig'
 ]
 
 MIDDLEWARE = [
@@ -45,10 +48,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'assistant_accountant.urls'
 
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            TEMPLATE_DIR,
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -119,3 +125,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGOUT_REDIRECT_URL = 'users:login'
+LOGIN_REDIRECT_URL = 'about:index'
+
+YANDEX_DIRECT_CLIENT_ID = os.getenv('YANDEX_DIRECT_CLIENT_ID')
+YANDEX_DIRECT_CLIENT_SECRET = os.getenv('YANDEX_DIRECT_CLIENT_SECRET')

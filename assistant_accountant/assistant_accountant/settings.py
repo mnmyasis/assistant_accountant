@@ -126,5 +126,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGOUT_REDIRECT_URL = 'users:login'
+LOGIN_REDIRECT_URL = 'about:index'
+
 YANDEX_DIRECT_CLIENT_ID = os.getenv('YANDEX_DIRECT_CLIENT_ID')
 YANDEX_DIRECT_CLIENT_SECRET = os.getenv('YANDEX_DIRECT_CLIENT_SECRET')

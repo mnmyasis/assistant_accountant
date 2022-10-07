@@ -25,13 +25,15 @@ def yandex_direct_callback(request):
         client_secret=settings.YANDEX_DIRECT_CLIENT_SECRET,
         code=request.GET['code']
     )
+
     if data.get('access_token') is None or data.get('refresh_token') is None:
         raise ValueError(
             'Access or refresh_token is NULL.'
         )
-    if isinstance(int, data.get('expires_in')) is False:
+    expires_in = data.get('expires_in')
+    if isinstance(expires_in, int) is False:
         raise TypeError(
-            'Expires_in not int.'
+            f'Expires_in not int. {expires_in} {type(expires_in)}'
         )
 
     models.YandexDirectToken.objects.update_or_create(
@@ -40,7 +42,7 @@ def yandex_direct_callback(request):
             'user': request.user,
             'access_token': data.get('access_token'),
             'refresh_token': data.get('refresh_token'),
-            'expires_in': data.get('expires_in'),
+            'expires_in': expires_in,
         }
     )
     return redirect(

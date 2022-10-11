@@ -12,3 +12,7 @@ class YandexDirectResponseError(Exception):
 
 class ParamsAlreadyExistError(Exception):
     pass
+
+
+class YandexDirectApiRequestERROR(Exception):
+    pass

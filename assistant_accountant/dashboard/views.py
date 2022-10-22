@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.urls import reverse
 
@@ -47,4 +47,21 @@ def yandex_direct_callback(request):
     )
     return redirect(
         reverse('dashboard:index')
+    )
+
+
+@login_required
+def yandex_test(request):
+    token = get_object_or_404(models.YandexDirectToken, user=request.user)
+    selection_criteria = {
+            'Archived': 'NO'
+        }
+    field_names = ['Login', 'ClientId']
+    data = direct.AgencyClients(access_token=token.access_token,
+                                selection_criteria=selection_criteria,
+                                field_names=field_names,
+                                on_sandbox=True).get()
+    print(data)
+    return redirect(
+        reverse('about:index')
     )

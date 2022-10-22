@@ -2,5 +2,13 @@ class ExchangeCodeOnTokenError(Exception):
     pass
 
 
-class YandexDirectApiRequestERROR(Exception):
+class YandexDirectApiRequestError(Exception):
+    pass
+
+
+class YandexDirectResponseError(Exception):
+    pass
+
+
+class ParamsAlreadyExistError(Exception):
     pass

@@ -49,10 +49,19 @@ def yandex_direct_callback(request):
         reverse('dashboard:index')
     )
 
+
 @login_required
 def yandex_test(request):
     token = get_object_or_404(models.YandexDirectToken, user=request.user)
-    direct.clients(token.access_token)
+    selection_criteria = {
+            'Archived': 'NO'
+        }
+    field_names = ['Login', 'ClientId']
+    data = direct.AgencyClients(access_token=token.access_token,
+                                selection_criteria=selection_criteria,
+                                field_names=field_names,
+                                on_sandbox=True).get()
+    print(data)
     return redirect(
         reverse('about:index')
     )

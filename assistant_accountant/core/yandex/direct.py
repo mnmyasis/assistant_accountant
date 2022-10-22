@@ -4,22 +4,7 @@ from typing import List, Dict
 import requests
 from http import HTTPStatus
 
-from requests import Response
-
 from . import exceptions
-
-URL = 'https://api.direct.yandex.com/'
-SANDBOX_URL = 'https://api-sandbox.direct.yandex.com/'
-
-VERSION_API = 'json/v5/'
-
-REPORT_TYPE = 'ACCOUNT_PERFORMANCE_REPORT'
-
-
-def get_url(on_sandbox=False):
-    if on_sandbox:
-        return SANDBOX_URL + VERSION_API
-    return URL + VERSION_API
 
 
 def get_url_verification_code_request(client_id):
@@ -63,59 +48,6 @@ def exchange_code_on_token(client_id, client_secret, code):
     return response_json
 
 
-def clients(access_token):
-    headers = {
-        "Authorization": "Bearer " + access_token,
-        "Accept-Language": "ru"
-    }
-    limit = 10000
-    offset = 0
-    data = []
-    service = 'agencyclients'
-    while True:
-        agency_client_body = {
-            "method": "get",
-            "params": {
-                "SelectionCriteria": {
-                    "Archived": "NO"
-                },
-                "FieldNames": ["Login", "ClientId"],
-                "ContractFieldNames": ["Price", ],
-                "Page": {
-                    "Limit": limit,
-                    "Offset": offset
-                }
-            }
-        }
-        url = get_url(on_sandbox=True) + service
-        response = requests.post(
-            url,
-            json.dumps(agency_client_body),
-            headers=headers
-        )
-
-        print(response.status_code)
-        response_json = response.json()
-        if response_json.get('error'):
-            error = response_json['error']
-            raise exceptions.YandexDirectApiRequestError(
-                f'Код ответа API: {response.status_code}, '
-                f'RequestId: {response.headers.get("RequestId")}, '
-                f'Ответ: {error}, '
-                f'endpoint: {url}'
-            )
-        if not response_json['result']:
-            print(data)
-            return data
-
-        data.append(response_json)
-        if response_json['result'].get("LimitedBy"):
-            agency_client_body['Page']['Offset'] = response_json['result'][
-                "LimitedBy"]
-        else:
-            return data
-
-
 class BaseApi:
     """
     Базовый класс для работы с API Яндекс Директ.\n
@@ -144,6 +76,7 @@ class BaseApi:
         self.field_names = field_names
         self.on_sandbox = on_sandbox
         self.language = language
+        self.status_code = None
 
     @property
     def endpoint_service(self) -> str:
@@ -168,21 +101,18 @@ class BaseApi:
 
     def get_url(self) -> str:
         """Возвращает урл для запроса."""
-        url = '{base_url}{version}{service}'
         if self.on_sandbox:
-            url.format(base_url=self.SANDBOX_URL)
+            url = self.SANDBOX_URL
         else:
-            url.format(base_url=self.URL)
+            url = self.URL
 
-        return url.format(
-            version=self.VERSION_API,
-            service=self.endpoint_service
-        )
+        return url + self.VERSION_API + self.endpoint_service
 
     @property
     def __payload(self):
         """Парметры запроса."""
         return {
+            'method': 'get',
             self.PARAMS_KEY: {
                 "SelectionCriteria": self.selection_criteria,
                 "FieldNames": self.field_names,
@@ -193,10 +123,6 @@ class BaseApi:
         """Установка дополнительных параметров."""
         if not key or not value:
             raise ValueError()
-        if self.__payload[self.PARAMS_KEY].get(key):
-            raise exceptions.ParamsAlreadyExistError(
-                f'{key} already exists in params'
-            )
         self.__payload[self.PARAMS_KEY][key] = value
 
     def get_payload(self) -> Dict:
@@ -219,21 +145,20 @@ class BaseApi:
             payload: Dict
     ) -> Dict:
         """Запрос к API."""
-        status_code = None
         try:
             response = requests.post(
                 url,
                 json.dumps(payload),
                 headers=headers
             )
-            status_code = response.status_code
+            self.status_code = response.status_code
             response.raise_for_status()
         except Exception as error:
             raise exceptions.YandexDirectApiRequestError(
                 f'Api request error url: {url} '
                 f'payload: {payload} '
-                f'headers:  {headers}'
-                f'status_code: {status_code} '
+                f'headers:  {headers} '
+                f'status_code: {self.status_code} '
                 f'error: {error}'
             )
         return response.json()
@@ -247,17 +172,15 @@ class BaseApi:
         if response.get('error'):
             error = response['error']
             raise exceptions.YandexDirectResponseError(
-                f'Endpoint: {self.endpoint_service}'
-                f'Payload: {self.__payload}'
-                f'Error: {error}'
+                f'Endpoint: {self.endpoint_service} '
+                f'Payload: {self.__payload} '
+                f'Error: {error} '
+                f'Full url: {self.get_url()}'
             )
         return response
 
-    def get(self) -> Dict:
-        """
-        Пользовательский интерфейс и оркестратор.
-        :return: response
-        """
+    def run_api_request(self) -> Dict:
+        """Оркестратор."""
         payload = self.get_payload()
         url = self.get_url()
         headers = self.get_headers()
@@ -265,6 +188,70 @@ class BaseApi:
         response = self.check_response(response)
         return response
 
+    def get(self):
+        """
+        Пользовательский интерфейс.
+        Переопределить в дочернем классе, если потребуется
+        дополнительная логика.
+        :return: response
+        """
+        response = self.run_api_request()
+        return response
+
+
+class AgencyClients(BaseApi):
+    """
+    Получает список клиентов агентства из API Яндекс директ.\n
+    AgencyClients(access_token=...,
+                selection_criteria=...,\n
+                field_names=...,\n
+                on_sandbox=False,\n
+                language='ru').get()
+    """
+    ENDPOINT = 'agencyclients'
+    LIMIT = 10000
+    OFFSET = 0
+    CONTRACT_FIELD_NAMES = {'ContractFieldNames': ["Price", ]}
+    PAGINATION_PARAMS = {
+        'Page': {
+            'Limit': LIMIT,
+            'Offset': OFFSET
+        }
+    }
+    RESULT_KEY = 'result'
+    LIMITED_BY_KEY = 'LimitedBy'
+
+    @property
+    def endpoint_service(self) -> str:
+        """Endpoint сервиса."""
+        return self.ENDPOINT
+
+    def get_payload(self) -> Dict:
+        """Устанавливает дополнительные параметры в payload."""
+        for params in [self.CONTRACT_FIELD_NAMES, self.PAGINATION_PARAMS]:
+            for key, value in params.items():
+                self.set_params_payload(key, value)
+        return super().get_payload()
+
+    def change_offset(self, limited_by):
+        """Меняет параметр offset в payload."""
+        self.OFFSET = limited_by
+        for key, value in self.PAGINATION_PARAMS.items():
+            self.set_params_payload(key, value)
+
+    def get(self):
+        data = []
+        has_all_clients_received = False
+        while not has_all_clients_received:
+            response = self.run_api_request()
+            limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
+            data.append(response)
+            if limited_by:
+                self.change_offset(limited_by)
+            else:
+                has_all_clients_received = True
+        return data
+
 
 if __name__ == '__main__':
-    print(get_url())
+    ...

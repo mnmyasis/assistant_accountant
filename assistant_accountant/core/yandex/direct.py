@@ -118,6 +118,7 @@ class BaseApi:
     def payload(self) -> Dict:
         """Парметры запроса."""
         return {
+            'method': 'get',
             self.PARAMS_KEY: {
                 "SelectionCriteria": self.selection_criteria,
                 "FieldNames": self.field_names,

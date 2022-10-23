@@ -1,8 +1,10 @@
 import json
-from typing import List, Dict
+from time import sleep
+from typing import List, Dict, Union
 
 import requests
 from http import HTTPStatus
+from requests import Response
 
 from . import exceptions
 
@@ -66,11 +68,13 @@ class BaseApi:
     def __init__(
             self,
             access_token: str,
-            selection_criteria: Dict,
             field_names: List[str],
+            selection_criteria: Dict = None,
             on_sandbox=False,
             language='ru'
     ):
+        if selection_criteria is None:
+            selection_criteria = dict()
         self.access_token = access_token
         self.selection_criteria = selection_criteria
         self.field_names = field_names
@@ -108,48 +112,106 @@ class BaseApi:
 
         return url + self.VERSION_API + self.endpoint_service
 
+    def get_method(self) -> Union[str, None]:
+        """Возвращает метод запроса get, post, None."""
+        ...
+
     @property
-    def __payload(self):
+    def payload(self) -> Dict:
         """Парметры запроса."""
         return {
-            'method': 'get',
             self.PARAMS_KEY: {
                 "SelectionCriteria": self.selection_criteria,
                 "FieldNames": self.field_names,
             }
         }
 
-    def set_params_payload(self, key, value):
+    def set_payload_method(self, method: str, payload: Dict) -> Dict:
+        """Устанавливает метод запроса в payload."""
+        payload['method'] = method
+        return payload
+
+    def set_params_payload(self, additional_payload_params, payload) -> Dict:
         """Установка дополнительных параметров."""
-        if not key or not value:
-            raise ValueError()
-        self.__payload[self.PARAMS_KEY][key] = value
+        for params in additional_payload_params:
+            for key, value in params.items():
+                if not key or not value:
+                    raise ValueError(
+                        f'{key}: {value}'
+                    )
+                payload[self.PARAMS_KEY][key] = value
+        return payload
+
+    @property
+    def additional_payload_params(self) -> List[Dict]:
+        """
+        Для установки дополнительных параметров в дочерних классах,
+        необходимо переопределить и вернуть список словарей с параметрами
+        запроса.\n
+        Пример:
+        ----------
+        @property\n
+        def additional_payload_params(self) -> List[Dict]:
+            return [
+                {'ContractFieldNames': ['Price',]},
+                {
+                    'Page': {
+                        'Limit': LIMIT,
+                        'Offset': OFFSET
+                    }
+                },
+            ]
+        """
+        return []
 
     def get_payload(self) -> Dict:
         """
-        Возвращает payload.\n
-        Если потребуется расширить параметры запроса,
-        необходимо переопределить данную функцию и передать необходимые
-        параметры через set_params_payload.\n
-        def get_payload(self) -> Dict:
-            self.set_params_payload(key=..., value...)\n
-            return super().get_payload()
-        :return: payload
+        Возвращает payload.
+        :return:payload
         """
-        return self.__payload
+        payload = self.payload
+        if self.get_method():
+            payload = self.set_payload_method(self.get_method(), payload)
+        if self.additional_payload_params:
+            payload = self.set_params_payload(self.additional_payload_params,
+                                              payload)
+        return payload
+
+    def get_response(self, url, payload, headers) -> Response:
+        """
+        Делает запрос и возвращает ответ.
+        Переопределить в дочернем классе, если требуется расширение логики
+        запроса.
+        :param url:
+        :param payload:
+        :param headers:
+        :return: response
+        """
+        return requests.post(
+            url,
+            json.dumps(payload),
+            headers=headers
+        )
+
+    def api_response_decode(self, response):
+        """
+        Декодирование ответа от апи. Сделан для возможности расширения логики в
+        дочерних классах.
+        """
+        return response.json()
 
     def api_request(
             self,
             url: str,
             headers: Dict[str, str],
             payload: Dict
-    ) -> Dict:
+    ) -> Response:
         """Запрос к API."""
         try:
-            response = requests.post(
+            response = self.get_response(
                 url,
-                json.dumps(payload),
-                headers=headers
+                payload,
+                headers
             )
             self.status_code = response.status_code
             response.raise_for_status()
@@ -161,7 +223,7 @@ class BaseApi:
                 f'status_code: {self.status_code} '
                 f'error: {error}'
             )
-        return response.json()
+        return response
 
     def check_response(self, response: Dict) -> Dict:
         """Проверка ответа от API директа."""
@@ -173,7 +235,7 @@ class BaseApi:
             error = response['error']
             raise exceptions.YandexDirectResponseError(
                 f'Endpoint: {self.endpoint_service} '
-                f'Payload: {self.__payload} '
+                f'Payload: {self.payload} '
                 f'Error: {error} '
                 f'Full url: {self.get_url()}'
             )
@@ -185,6 +247,7 @@ class BaseApi:
         url = self.get_url()
         headers = self.get_headers()
         response = self.api_request(url=url, headers=headers, payload=payload)
+        response = self.api_response_decode(response)
         response = self.check_response(response)
         return response
 
@@ -220,24 +283,27 @@ class AgencyClients(BaseApi):
     }
     RESULT_KEY = 'result'
     LIMITED_BY_KEY = 'LimitedBy'
+    METHOD = 'get'
 
     @property
     def endpoint_service(self) -> str:
         """Endpoint сервиса."""
         return self.ENDPOINT
 
-    def get_payload(self) -> Dict:
-        """Устанавливает дополнительные параметры в payload."""
-        for params in [self.CONTRACT_FIELD_NAMES, self.PAGINATION_PARAMS]:
-            for key, value in params.items():
-                self.set_params_payload(key, value)
-        return super().get_payload()
+    @property
+    def additional_payload_params(self) -> List[Dict]:
+        return [
+            self.CONTRACT_FIELD_NAMES,
+            self.PAGINATION_PARAMS
+        ]
 
-    def change_offset(self, limited_by):
+    def get_method(self) -> Union[str, None]:
+        return self.METHOD
+
+    def change_offset(self, limited_by) -> None:
         """Меняет параметр offset в payload."""
         self.OFFSET = limited_by
-        for key, value in self.PAGINATION_PARAMS.items():
-            self.set_params_payload(key, value)
+        self.set_params_payload(self.additional_payload_params)
 
     def get(self):
         data = []
@@ -251,6 +317,122 @@ class AgencyClients(BaseApi):
             else:
                 has_all_clients_received = True
         return data
+
+
+class BaseReport(BaseApi):
+    """
+    Базовый класс для отчетов API Яндекс директ.\n
+    Наследуется от BaseApi и переопределяет метод оркестратор run_api_request.
+    """
+    ENDPOINT = 'reports'
+    RETRY_IN_KEY = 'retryIn'
+    RETRY_IN = 60
+    INDENT = 4
+
+    @property
+    def endpoint_service(self) -> str:
+        return self.ENDPOINT
+
+    def get_response(self, url, payload, headers) -> Response:
+        return requests.post(
+            url,
+            json.dumps(payload, indent=self.INDENT),
+            headers=headers)
+
+    def run_api_request(self) -> Dict:
+        """Оркестратор."""
+        payload = self.get_payload()
+        url = self.get_url()
+        headers = self.get_headers()
+        while True:
+            response = self.api_request(url=url,
+                                        headers=headers,
+                                        payload=payload)
+            if response.status_code == HTTPStatus.OK:
+                # Отчет создан успешно
+                response = self.api_response_decode(response)
+                response = self.check_response(response)
+                return response
+            elif response.status_code == HTTPStatus.CREATED:
+                # успешно поставлен в очередь в режиме offline
+                retry_in = int(
+                    response.headers.get(self.RETRY_IN_KEY, self.RETRY_IN)
+                )
+                sleep(retry_in)
+            elif response.status_code == HTTPStatus.ACCEPTED:
+                # Отчет формируется в режиме офлайн
+                retry_in = int(
+                    response.headers.get(self.RETRY_IN_KEY, self.RETRY_IN)
+                )
+                sleep(retry_in)
+            else:
+                raise exceptions.UnexpectedError(
+                    f'endpoint: {self.ENDPOINT} '
+                    f'payload: {payload} ',
+                    f'headers: {headers} ',
+                    f'status_code: {self.status_code} ',
+                )
+
+
+class ClientCostReport(BaseReport):
+    """
+    Отчет затрат по клиенту.\n
+    """
+    REPORT_TYPE = 'ACCOUNT_PERFORMANCE_REPORT'
+    REPORT_NAME = 'ACCOUNT_COST'
+    FORMAT = 'TSV'
+    INCLUDE_VAT = 'NO'
+    INCLUDE_DISCOUNT = 'NO'
+    COST_FIELD = 'Cost'
+    CLICKS_FIELD = 'Clicks'
+    FIELD_NAMES = [COST_FIELD, CLICKS_FIELD]
+
+    def __init__(
+            self,
+            access_token: str,
+            client_login: str,
+            on_sandbox: bool = False,
+            language: str = 'ru'
+    ):
+        super().__init__(access_token, self.FIELD_NAMES,
+                         on_sandbox=on_sandbox, language=language)
+        self.client_login = client_login
+
+    @property
+    def additional_payload_params(self) -> List[Dict]:
+        return [
+            {
+                'ReportName': self.REPORT_NAME,
+                'ReportType': self.REPORT_TYPE,
+                'DateRangeType': 'AUTO',
+                'Format': self.FORMAT,
+                'IncludeVAT': self.INCLUDE_VAT,
+                'IncludeDiscount': self.INCLUDE_DISCOUNT
+            }
+        ]
+
+    def get_headers(self) -> Dict[str, str]:
+        headers = self.headers
+        headers['Client-Login'] = self.client_login
+        headers['skipReportHeader'] = 'true'
+        headers['skipColumnHeader'] = 'true'
+        headers['skipReportSummary'] = 'true'
+        headers['returnMoneyInMicros'] = 'false'
+        return headers
+
+    def api_response_decode(self, response):
+        response.encoding = 'utf-8'
+        result = {}
+        if response.text:
+            temp_result = response.text.split('\t')
+            keys = self.FIELD_NAMES
+            for key, value in zip(keys, temp_result):
+                if key == self.COST_FIELD:
+                    value = float(value)
+                if key == self.CLICKS_FIELD:
+                    value = int(value)
+                result[key] = value
+        return result
 
 
 if __name__ == '__main__':

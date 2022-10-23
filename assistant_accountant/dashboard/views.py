@@ -62,6 +62,12 @@ def yandex_test(request):
                                 field_names=field_names,
                                 on_sandbox=True).get()
     print(data)
+    clients = data[0]['result']['Clients']
+    for client in clients:
+        data = direct.ClientCostReport(access_token=token.access_token,
+                                       client_login=client['Login'],
+                                       on_sandbox=True).get()
+        print(data)
     return redirect(
         reverse('about:index')
     )

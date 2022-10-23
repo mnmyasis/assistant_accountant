@@ -1,6 +1,12 @@
 # assistant_accountant
 Инструментарий для бухгалтерии в сфере интернет рекламы
 
+# Перменные окружения:
+```
+SECRET_KEY=
+YANDEX_DIRECT_CLIENT_ID=
+YANDEX_DIRECT_CLIENT_SECRET=
+```
 
 # Запуск проекта:
 - Установить виртуальное окружение

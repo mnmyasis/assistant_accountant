@@ -68,11 +68,13 @@ class BaseApi:
     def __init__(
             self,
             access_token: str,
-            selection_criteria: Dict,
             field_names: List[str],
+            selection_criteria: Dict = None,
             on_sandbox=False,
             language='ru'
     ):
+        if selection_criteria is None:
+            selection_criteria = dict()
         self.access_token = access_token
         self.selection_criteria = selection_criteria
         self.field_names = field_names
@@ -118,7 +120,6 @@ class BaseApi:
     def payload(self) -> Dict:
         """Парметры запроса."""
         return {
-            'method': 'get',
             self.PARAMS_KEY: {
                 "SelectionCriteria": self.selection_criteria,
                 "FieldNames": self.field_names,
@@ -375,7 +376,7 @@ class BaseReport(BaseApi):
 
 class ClientCostReport(BaseReport):
     """
-    Отчет траты по клиенту.
+    Отчет затрат по клиенту.\n
     """
     REPORT_TYPE = 'ACCOUNT_PERFORMANCE_REPORT'
     REPORT_NAME = 'ACCOUNT_COST'
@@ -389,13 +390,12 @@ class ClientCostReport(BaseReport):
     def __init__(
             self,
             access_token: str,
-            selection_criteria: dict,
             client_login: str,
             on_sandbox: bool = False,
             language: str = 'ru'
     ):
-        super().__init__(access_token, selection_criteria, self.FIELD_NAMES,
-                         on_sandbox, language)
+        super().__init__(access_token, self.FIELD_NAMES,
+                         on_sandbox=on_sandbox, language=language)
         self.client_login = client_login
 
     @property

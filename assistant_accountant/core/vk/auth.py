@@ -79,7 +79,7 @@ def get_access_token(
     expires_in = response_json.get('expires_in')
     if not access_token:
         raise exceptions.VkRequestError('Missing access token.')
-    if not expires_in or not isinstance(expires_in, int):
+    if expires_in is None or not isinstance(expires_in, int):
         raise exceptions.VkRequestError(
             f'Missing expires_in or data type is not int: {expires_in}'
         )

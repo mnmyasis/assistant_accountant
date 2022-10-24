@@ -4,6 +4,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from core.yandex import direct
+from core.vk.auth import get_auth_url, get_access_token
 from . import models
 
 
@@ -13,7 +14,11 @@ def index(request):
         'yandex_direct_verification_code_url':
             direct.get_url_verification_code_request(
                 client_id=settings.YANDEX_DIRECT_CLIENT_ID
-            )
+            ),
+        'vk_ads_auth_url': get_auth_url(
+            client_id=settings.VK_CLIENT_ID,
+            redirect_uri=settings.VK_REDIRECT_URL
+        )
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -42,6 +47,26 @@ def yandex_direct_callback(request):
             'user': request.user,
             'access_token': data.get('access_token'),
             'refresh_token': data.get('refresh_token'),
+            'expires_in': expires_in,
+        }
+    )
+    return redirect(
+        reverse('dashboard:index')
+    )
+
+
+def vk_callback(request):
+    access_token, expires_in = get_access_token(
+        client_id=settings.VK_CLIENT_ID,
+        client_secret=settings.VK_CLIENT_SECRET,
+        redirect_uri=settings.VK_REDIRECT_URL,
+        code=request.GET.get('code')
+    )
+    models.VkAdsToken.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'user': request.user,
+            'access_token': access_token,
             'expires_in': expires_in,
         }
     )

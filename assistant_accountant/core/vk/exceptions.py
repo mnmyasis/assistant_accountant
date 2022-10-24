@@ -1,0 +1,2 @@
+class VkRequestError(Exception):
+    pass

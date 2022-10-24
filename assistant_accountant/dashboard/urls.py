@@ -10,5 +10,6 @@ urlpatterns = [
          views.yandex_direct_callback,
          name='yandex_direct_callback'),
     path('vk-callback', views.vk_callback),
-    path('yandex-direct/test/', views.yandex_test, name='yandex_test')
+    path('yandex-direct/test/', views.yandex_test, name='yandex_test'),
+    path('vk/test/', views.vk_test, name='vk_test')
 ]

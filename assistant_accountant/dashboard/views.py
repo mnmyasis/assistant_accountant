@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from core.yandex import direct
 from core.vk.auth import get_auth_url, get_access_token
+from core.vk import ads
 from . import models
 
 
@@ -93,6 +94,41 @@ def yandex_test(request):
                                        client_login=client['Login'],
                                        on_sandbox=True).get()
         print(data)
+    return redirect(
+        reverse('about:index')
+    )
+
+
+@login_required
+def vk_test(request):
+    vk_tokens = models.VkAdsToken.objects.get(user=request.user)
+    data = ads.Account(access_token=vk_tokens.access_token).get()
+    # print(data)
+    result = []
+    accounts = data['response'][0]['account_id'], data['response'][1][
+        'account_id']
+    for account in accounts:
+        data = ads.Clients(access_token=vk_tokens.access_token,
+                           account_id=account).get()
+        res = {
+            'account_id': account
+        }
+        ids = []
+
+        for line in data['response']:
+            ids.append(line['id'])
+        res['client_ids'] = ids
+        result.append(res)
+
+        data = ads.Statistic(
+            access_token=vk_tokens.access_token,
+            account_id=account,
+            ids=ids,
+            date_from='2014',
+            date_to='2022'
+        ).get()
+        print(data)
+    # print(result)
     return redirect(
         reverse('about:index')
     )

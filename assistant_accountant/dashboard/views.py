@@ -4,6 +4,8 @@ from django.conf import settings
 from django.urls import reverse
 
 from core.yandex import direct
+from core.vk.auth import get_auth_url, get_access_token
+from core.vk import ads
 from . import models
 
 
@@ -13,7 +15,11 @@ def index(request):
         'yandex_direct_verification_code_url':
             direct.get_url_verification_code_request(
                 client_id=settings.YANDEX_DIRECT_CLIENT_ID
-            )
+            ),
+        'vk_ads_auth_url': get_auth_url(
+            client_id=settings.VK_CLIENT_ID,
+            redirect_uri=settings.VK_REDIRECT_URL
+        )
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -50,6 +56,26 @@ def yandex_direct_callback(request):
     )
 
 
+def vk_callback(request):
+    access_token, expires_in = get_access_token(
+        client_id=settings.VK_CLIENT_ID,
+        client_secret=settings.VK_CLIENT_SECRET,
+        redirect_uri=settings.VK_REDIRECT_URL,
+        code=request.GET.get('code')
+    )
+    models.VkAdsToken.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'user': request.user,
+            'access_token': access_token,
+            'expires_in': expires_in,
+        }
+    )
+    return redirect(
+        reverse('dashboard:index')
+    )
+
+
 @login_required
 def yandex_test(request):
     token = get_object_or_404(models.YandexDirectToken, user=request.user)
@@ -68,6 +94,41 @@ def yandex_test(request):
                                        client_login=client['Login'],
                                        on_sandbox=True).get()
         print(data)
+    return redirect(
+        reverse('about:index')
+    )
+
+
+@login_required
+def vk_test(request):
+    vk_tokens = models.VkAdsToken.objects.get(user=request.user)
+    data = ads.Account(access_token=vk_tokens.access_token).get()
+    # print(data)
+    result = []
+    accounts = data['response'][0]['account_id'], data['response'][1][
+        'account_id']
+    for account in accounts:
+        data = ads.Clients(access_token=vk_tokens.access_token,
+                           account_id=account).get()
+        res = {
+            'account_id': account
+        }
+        ids = []
+
+        for line in data['response']:
+            ids.append(line['id'])
+        res['client_ids'] = ids
+        result.append(res)
+
+        data = ads.Statistic(
+            access_token=vk_tokens.access_token,
+            account_id=account,
+            ids=ids,
+            date_from='2014',
+            date_to='2022'
+        ).get()
+        print(data)
+    # print(result)
     return redirect(
         reverse('about:index')
     )

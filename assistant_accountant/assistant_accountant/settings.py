@@ -15,12 +15,12 @@ DEBUG = True
 if DEBUG:
     load_dotenv()
 
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY', '')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 INTERNAL_IPS = [
     '127.0.0.1',
@@ -137,3 +137,7 @@ LOGIN_REDIRECT_URL = 'about:index'
 
 YANDEX_DIRECT_CLIENT_ID = os.getenv('YANDEX_DIRECT_CLIENT_ID')
 YANDEX_DIRECT_CLIENT_SECRET = os.getenv('YANDEX_DIRECT_CLIENT_SECRET')
+
+VK_CLIENT_ID = os.getenv('VK_CLIENT_ID')
+VK_CLIENT_SECRET = os.getenv('VK_CLIENT_SECRET')
+VK_REDIRECT_URL = os.getenv('VK_REDIRECT_URL')

@@ -9,37 +9,30 @@ YANDEX_DIRECT_CLIENT_SECRET=
 VK_CLIENT_ID=
 VK_CLIENT_SECRET=
 VK_REDIRECT_URL=
+MY_TARGET_CLIENT_ID=
+MY_TARGET_CLIENT_SECRET=
 ```
 
 # Запуск проекта:
-- Установить виртуальное окружение
+
+### Linux
 ```
-python -m venv venv
-```
-- Активировать виртуальное окружение
-- Для Linux:
-```
+python3 -m venv venv
 source venv/bin/activate
-```
-- Для Windows(PowerShell):
-```
-venv/Script/activate
-```
-- Перейти в каталог \assistant_accountant, в котором должен находиться файл manage.py
-```
 cd assistant_accountant
-```
-- Установить зависимости
-```
 pip install -r requirements.txt
-```
-- Выполнить миграции
-```
 python manage.py migrate
-```
-- Запустить дев сервер
-```
 python manage.py runserver
+```
+
+### Windows(PowerShell)
+```
+python3.exe -m venv venv
+venv/Script/activate
+cd assistant_accountant
+pip install -r requirements.txt
+python.exe manage.py migrate
+python.exe manage.py runserver
 ```
 
 ### Другие команды:

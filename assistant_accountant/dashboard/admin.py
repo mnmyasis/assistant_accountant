@@ -4,3 +4,4 @@ from . import models
 
 admin.site.register(models.YandexDirectToken)
 admin.site.register(models.VkAdsToken)
+admin.site.register(models.MyTargetToken)

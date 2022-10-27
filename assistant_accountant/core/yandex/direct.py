@@ -309,7 +309,7 @@ class AgencyClients(BaseApi):
         while not has_all_clients_received:
             response = self.run_api_request()
             limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
-            data.append(response)
+            data.append(response.get(self.RESULT_KEY).get('Clients'))
             if limited_by:
                 self.change_offset(limited_by)
             else:
@@ -431,6 +431,60 @@ class ClientCostReport(BaseReport):
                     value = int(value)
                 result[key] = value
         return result
+
+
+class Campaigns(BaseApi):
+    ENDPOINT = 'campaigns'
+    METHOD = 'get'
+    RESULT_KEY = 'result'
+    LIMITED_BY_KEY = 'LimitedBy'
+    LIMIT = 10000
+    OFFSET = 0
+    PAGINATION_PARAMS = {
+        'Page': {
+            'Limit': LIMIT,
+            'Offset': OFFSET
+        }
+    }
+
+    def __init__(
+            self,
+            access_token: str,
+            field_names: List[str],
+            client_login: str
+    ):
+        super().__init__(access_token=access_token, field_names=field_names)
+        self.client_login = client_login
+
+    @property
+    def endpoint_service(self) -> str:
+        return self.ENDPOINT
+
+    def get_headers(self) -> Dict[str, str]:
+        headers = super().get_headers()
+        headers['Client-Login'] = self.client_login
+        return headers
+
+    def get_method(self) -> Union[str, None]:
+        return self.METHOD
+
+    def additional_payload_params(self) -> List:
+        return [
+            self.PAGINATION_PARAMS
+        ]
+
+    def get(self):
+        data = []
+        has_all_clients_received = False
+        while not has_all_clients_received:
+            response = self.run_api_request()
+            limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
+            data.append(response.get(self.RESULT_KEY).get('Campaigns'))
+            if limited_by:
+                self.OFFSET = limited_by
+            else:
+                has_all_clients_received = True
+        return data
 
 
 if __name__ == '__main__':

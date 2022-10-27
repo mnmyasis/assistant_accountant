@@ -86,18 +86,26 @@ def yandex_test(request):
     selection_criteria = {
         'Archived': 'NO'
     }
-    field_names = ['Login', 'ClientId']
+    field_names = ['Login', 'ClientId', 'OverdraftSumAvailable', 'ClientInfo',
+                   'AccountQuality']
     data = direct.AgencyClients(access_token=token.access_token,
                                 selection_criteria=selection_criteria,
                                 field_names=field_names,
-                                on_sandbox=True).get()
+                                on_sandbox=False).get()
+    for line in data:
+        print(json.dumps(line, indent=4))
+    # clients = data[0]['result']['Clients']
+    # for client in clients:
+    #     data = direct.ClientCostReport(access_token=token.access_token,
+    #                                    client_login=client['Login'],
+    #                                    on_sandbox=True).get()
+    #     print(data)
+    data = direct.Campaigns(
+        access_token=token.access_token,
+        field_names=['Id', 'Name', 'Type', 'Funds'],
+        client_login='fomin-spb-di'
+    ).get()
     print(data)
-    clients = data[0]['result']['Clients']
-    for client in clients:
-        data = direct.ClientCostReport(access_token=token.access_token,
-                                       client_login=client['Login'],
-                                       on_sandbox=True).get()
-        print(data)
     return redirect(
         reverse('about:index')
     )

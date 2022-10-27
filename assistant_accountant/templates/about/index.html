@@ -1,13 +1,15 @@
 {% extends 'base.html' %}
 {% block title %} Стартовая страница {% endblock %}
 {% block content %}
-<div class="row">
-  <div class="col-12">
-    {% with request.resolver_match.view_name as view_name %}
-        <a href="{% url 'dashboard:index' %}">dashboard:index</a>
-        <a href="{% url 'dashboard:yandex_test' %}">dashboard:yandex_test</a>
-        <a href="{% url 'dashboard:vk_test' %}">dashboard:vk_test</a>
-    {% endwith %}
+  <div class="row">
+    <div class="col-12">
+      {% with request.resolver_match.view_name as view_name %}
+        <p><a href="{% url 'dashboard:index' %}">dashboard:index</a></p>
+        <p><a href="{% url 'dashboard:yandex_test' %}">dashboard:yandex_test</a></p>
+        <p><a href="{% url 'dashboard:vk_test' %}">dashboard:vk_test</a></p>
+        <p><a href="{% url 'dashboard:my_target_auth' %}">dashboard:my_target_auth</a></p>
+        <p><a href="{% url 'dashboard:my_target_test' %}">dashboard:my_target_test</a></p>
+      {% endwith %}
+    </div>
   </div>
-</div>
 {% endblock %}

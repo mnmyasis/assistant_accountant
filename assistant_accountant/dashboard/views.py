@@ -115,18 +115,20 @@ def yandex_test(request):
 def vk_test(request):
     vk_tokens = models.VkAdsToken.objects.get(user=request.user)
     data = ads.Account(access_token=vk_tokens.access_token).get()
-    # print(data)
+    print(data)
     result = []
     accounts = data['response'][0]['account_id'], data['response'][1][
         'account_id']
     for account in accounts:
         data = ads.Clients(access_token=vk_tokens.access_token,
                            account_id=account).get()
+        print(account)
         res = {
             'account_id': account
         }
         ids = []
-
+        # data = ads.GetBudget(access_token=vk_tokens.access_token,
+        #                      account_id=str(account)).get()
         for line in data['response']:
             ids.append(line['id'])
         res['client_ids'] = ids

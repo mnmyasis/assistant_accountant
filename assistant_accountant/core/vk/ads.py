@@ -178,3 +178,21 @@ class Statistic(BaseApi):
         params['date_to'] = self.date_to
         params['period'] = self.period
         return params
+
+
+class GetBudget(BaseApi):
+    """Возвращает текущий бюджет рекламного кабинета."""
+    METHOD = 'ads.getBudget'
+
+    def __init__(self, access_token: str, account_id: str):
+        super().__init__(access_token)
+        self.account_id = account_id
+
+    @property
+    def api_method(self) -> str:
+        return self.METHOD
+
+    def get_params(self) -> Dict:
+        params = super().get_params()
+        params['account_id'] = self.account_id
+        return params

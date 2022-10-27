@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
@@ -6,6 +8,8 @@ from django.urls import reverse
 from core.yandex import direct
 from core.vk.auth import get_auth_url, get_access_token
 from core.vk import ads
+from core.my_target import auth, exceptions
+from core.my_target import ads as my_target_ads
 from . import models
 
 
@@ -129,6 +133,61 @@ def vk_test(request):
         ).get()
         print(data)
     # print(result)
+    return redirect(
+        reverse('about:index')
+    )
+
+
+@login_required
+def my_target_auth(request):
+    try:
+        response = auth.ClientCredentialsToken(
+            client_id=settings.MY_TARGET_CLIENT_ID,
+            client_secret=settings.MY_TARGET_CLIENT_SECRET
+        ).run()
+    except exceptions.MyTargetTokenLimitError as error:
+        user_id = error.args[0].get('user_id')
+        auth.DeleteTokens(
+            client_id=settings.MY_TARGET_CLIENT_ID,
+            client_secret=settings.MY_TARGET_CLIENT_SECRET,
+            user_id=user_id
+        ).run()
+        response = auth.ClientCredentialsToken(
+            client_id=settings.MY_TARGET_CLIENT_ID,
+            client_secret=settings.MY_TARGET_CLIENT_SECRET
+        ).run()
+    print(response)
+    access_token = response.get('access_token')
+    refresh_token = response.get('refresh_token')
+    expires_in = response.get('expires_in')
+    token, _ = models.MyTargetToken.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'expires_in': expires_in
+        }
+    )
+    return redirect(
+        reverse('about:index')
+    )
+
+
+@login_required
+def my_target_test(request):
+    my_target = models.MyTargetToken.objects.get(user=request.user)
+    data = my_target_ads.AgencyClients(my_target.access_token).run()
+    print(data)
+    ids = []
+    for line in data:
+        ids.append(line['user']['id'])
+    data = my_target_ads.SummaryStatistic(
+        my_target.access_token,
+        ids=ids,
+        date_from='2022-01-01',
+        date_to='2022-10-25'
+    ).run()
+    print(data)
     return redirect(
         reverse('about:index')
     )

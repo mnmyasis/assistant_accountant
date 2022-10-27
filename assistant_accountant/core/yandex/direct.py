@@ -116,22 +116,12 @@ class BaseApi:
         """Возвращает метод запроса get, post, None."""
         ...
 
-    @property
-    def payload(self) -> Dict:
-        """Парметры запроса."""
-        return {
-            self.PARAMS_KEY: {
-                "SelectionCriteria": self.selection_criteria,
-                "FieldNames": self.field_names,
-            }
-        }
-
-    def set_payload_method(self, method: str, payload: Dict) -> Dict:
+    def set_method(self, method: str, payload: Dict) -> Dict:
         """Устанавливает метод запроса в payload."""
         payload['method'] = method
         return payload
 
-    def set_params_payload(self, additional_payload_params, payload) -> Dict:
+    def set_params(self, additional_payload_params, payload) -> Dict:
         """Установка дополнительных параметров."""
         for params in additional_payload_params:
             for key, value in params.items():
@@ -142,7 +132,6 @@ class BaseApi:
                 payload[self.PARAMS_KEY][key] = value
         return payload
 
-    @property
     def additional_payload_params(self) -> List[Dict]:
         """
         Для установки дополнительных параметров в дочерних классах,
@@ -162,19 +151,29 @@ class BaseApi:
                 },
             ]
         """
-        return []
+        ...
+
+    def set_payload(self, payload: Dict) -> Dict:
+        """Устанавливает дополнительные данные в запрос."""
+        if self.get_method():
+            payload = self.set_method(self.get_method(), payload)
+        if self.additional_payload_params():
+            payload = self.set_params(
+                self.additional_payload_params(),
+                payload)
+        return payload
 
     def get_payload(self) -> Dict:
         """
         Возвращает payload.
         :return:payload
         """
-        payload = self.payload
-        if self.get_method():
-            payload = self.set_payload_method(self.get_method(), payload)
-        if self.additional_payload_params:
-            payload = self.set_params_payload(self.additional_payload_params,
-                                              payload)
+        payload = {
+            self.PARAMS_KEY: {
+                "SelectionCriteria": self.selection_criteria,
+                "FieldNames": self.field_names,
+            }
+        }
         return payload
 
     def get_response(self, url, payload, headers) -> Response:
@@ -235,7 +234,7 @@ class BaseApi:
             error = response['error']
             raise exceptions.YandexDirectResponseError(
                 f'Endpoint: {self.endpoint_service} '
-                f'Payload: {self.payload} '
+                f'Payload: {self.get_payload()} '
                 f'Error: {error} '
                 f'Full url: {self.get_url()}'
             )
@@ -244,6 +243,7 @@ class BaseApi:
     def run_api_request(self) -> Dict:
         """Оркестратор."""
         payload = self.get_payload()
+        payload = self.set_payload(payload)
         url = self.get_url()
         headers = self.get_headers()
         response = self.api_request(url=url, headers=headers, payload=payload)
@@ -272,7 +272,7 @@ class AgencyClients(BaseApi):
                 language='ru').get()
     """
     ENDPOINT = 'agencyclients'
-    LIMIT = 10000
+    LIMIT = 2000
     OFFSET = 0
     CONTRACT_FIELD_NAMES = {'ContractFieldNames': ["Price", ]}
     PAGINATION_PARAMS = {
@@ -290,11 +290,10 @@ class AgencyClients(BaseApi):
         """Endpoint сервиса."""
         return self.ENDPOINT
 
-    @property
     def additional_payload_params(self) -> List[Dict]:
         return [
             self.CONTRACT_FIELD_NAMES,
-            self.PAGINATION_PARAMS
+            self.PAGINATION_PARAMS,
         ]
 
     def get_method(self) -> Union[str, None]:
@@ -303,7 +302,6 @@ class AgencyClients(BaseApi):
     def change_offset(self, limited_by) -> None:
         """Меняет параметр offset в payload."""
         self.OFFSET = limited_by
-        self.set_params_payload(self.additional_payload_params)
 
     def get(self):
         data = []
@@ -342,6 +340,7 @@ class BaseReport(BaseApi):
     def run_api_request(self) -> Dict:
         """Оркестратор."""
         payload = self.get_payload()
+        payload = self.set_payload(payload)
         url = self.get_url()
         headers = self.get_headers()
         while True:
@@ -398,7 +397,6 @@ class ClientCostReport(BaseReport):
                          on_sandbox=on_sandbox, language=language)
         self.client_login = client_login
 
-    @property
     def additional_payload_params(self) -> List[Dict]:
         return [
             {

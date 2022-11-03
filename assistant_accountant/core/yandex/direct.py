@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from time import sleep
 from typing import List, Dict, Union
 
@@ -9,9 +10,17 @@ from requests import Response
 from . import exceptions
 
 
+class Endpoints(Enum):
+    AGENCY_CLIENTS = 'agencyclients'
+    REPORTS = 'reports'
+    CAMPAIGNS = 'campaigns'
+    TOKEN = 'token'
+    AUTHORIZE = 'authorize'
+
+
 def get_url_verification_code_request(client_id):
     """Формируется урл для получения кода подтвержедения."""
-    url = 'https://oauth.yandex.ru/authorize'
+    url = 'https://oauth.yandex.ru/' + Endpoints.AUTHORIZE.value
     payload = {
         'response_type': 'code',
         'client_id': client_id
@@ -21,7 +30,7 @@ def get_url_verification_code_request(client_id):
 
 def exchange_code_on_token(client_id, client_secret, code):
     """Обмен кода подтверждения на токен."""
-    url = 'https://oauth.yandex.ru/token'
+    url = 'https://oauth.yandex.ru/' + Endpoints.TOKEN.value
     data = {
         'grant_type': 'authorization_code',
         'code': code,
@@ -83,7 +92,7 @@ class BaseApi:
         self.status_code = None
 
     @property
-    def endpoint_service(self) -> str:
+    def endpoint_service(self) -> Endpoints:
         """Endpoint сервиса API."""
         raise NotImplementedError
 
@@ -110,7 +119,7 @@ class BaseApi:
         else:
             url = self.URL
 
-        return url + self.VERSION_API + self.endpoint_service
+        return f'{url}{self.VERSION_API}{self.endpoint_service.value}'
 
     def get_method(self) -> Union[str, None]:
         """Возвращает метод запроса get, post, None."""
@@ -271,7 +280,6 @@ class AgencyClients(BaseApi):
                 on_sandbox=False,\n
                 language='ru').get()
     """
-    ENDPOINT = 'agencyclients'
     LIMIT = 2000
     OFFSET = 0
     CONTRACT_FIELD_NAMES = {'ContractFieldNames': ["Price", ]}
@@ -286,9 +294,9 @@ class AgencyClients(BaseApi):
     METHOD = 'get'
 
     @property
-    def endpoint_service(self) -> str:
+    def endpoint_service(self) -> Endpoints:
         """Endpoint сервиса."""
-        return self.ENDPOINT
+        return Endpoints.AGENCY_CLIENTS
 
     def additional_payload_params(self) -> List[Dict]:
         return [
@@ -322,14 +330,13 @@ class BaseReport(BaseApi):
     Базовый класс для отчетов API Яндекс директ.\n
     Наследуется от BaseApi и переопределяет метод оркестратор run_api_request.
     """
-    ENDPOINT = 'reports'
     RETRY_IN_KEY = 'retryIn'
     RETRY_IN = 60
     INDENT = 4
 
     @property
-    def endpoint_service(self) -> str:
-        return self.ENDPOINT
+    def endpoint_service(self) -> Endpoints:
+        return Endpoints.REPORTS
 
     def get_response(self, url, payload, headers) -> Response:
         return requests.post(
@@ -434,7 +441,6 @@ class ClientCostReport(BaseReport):
 
 
 class Campaigns(BaseApi):
-    ENDPOINT = 'campaigns'
     METHOD = 'get'
     RESULT_KEY = 'result'
     LIMITED_BY_KEY = 'LimitedBy'
@@ -457,8 +463,8 @@ class Campaigns(BaseApi):
         self.client_login = client_login
 
     @property
-    def endpoint_service(self) -> str:
-        return self.ENDPOINT
+    def endpoint_service(self) -> Endpoints:
+        return Endpoints.CAMPAIGNS
 
     def get_headers(self) -> Dict[str, str]:
         headers = super().get_headers()

@@ -12,6 +12,7 @@ from core.my_target import auth, exceptions
 from core.my_target import ads as my_target_ads
 from . import models
 
+
 @login_required
 def index(request):
     context = {
@@ -44,14 +45,16 @@ def yandex_direct_callback(request):
         raise TypeError(
             f'Expires_in not int. {expires_in} {type(expires_in)}'
         )
-
-    models.YandexDirectToken.objects.update_or_create(
+    source = models.Source.objects.get(name=models.YANDEX_DIRECT)
+    models.Token.objects.update_or_create(
         user=request.user,
+        source=source,
         defaults={
             'user': request.user,
             'access_token': data.get('access_token'),
             'refresh_token': data.get('refresh_token'),
             'expires_in': expires_in,
+            'source': source
         }
     )
     return redirect(
@@ -66,12 +69,16 @@ def vk_callback(request):
         redirect_uri=settings.VK_REDIRECT_URL,
         code=request.GET.get('code')
     )
-    models.VkAdsToken.objects.update_or_create(
+    source = models.Source.objects.get(name=models.VK_ADS)
+    models.Token.objects.update_or_create(
         user=request.user,
+        source=source,
         defaults={
             'user': request.user,
             'access_token': access_token,
             'expires_in': expires_in,
+            'source': source
+
         }
     )
     return redirect(
@@ -81,7 +88,8 @@ def vk_callback(request):
 
 @login_required
 def yandex_test(request):
-    token = get_object_or_404(models.YandexDirectToken, user=request.user)
+    token = get_object_or_404(models.Token, user=request.user,
+                              source__name=models.YANDEX_DIRECT)
     selection_criteria = {
         'Archived': 'NO'
     }
@@ -138,7 +146,8 @@ def yandex_test(request):
 
 @login_required
 def vk_test(request):
-    vk_tokens = models.VkAdsToken.objects.get(user=request.user)
+    vk_tokens = models.Token.objects.get(user=request.user,
+                                         source__name=models.VK_ADS)
     data = ads.Account(access_token=vk_tokens.access_token).get()
     print(data)
     result = []
@@ -195,12 +204,15 @@ def my_target_auth(request):
     access_token = response.get('access_token')
     refresh_token = response.get('refresh_token')
     expires_in = response.get('expires_in')
-    token, _ = models.MyTargetToken.objects.update_or_create(
+    source = models.Source.objects.get(name=models.MY_TARGET)
+    token, _ = models.Token.objects.update_or_create(
         user=request.user,
+        source=source,
         defaults={
             'access_token': access_token,
             'refresh_token': refresh_token,
-            'expires_in': expires_in
+            'expires_in': expires_in,
+            'source': source
         }
     )
     return redirect(
@@ -210,7 +222,8 @@ def my_target_auth(request):
 
 @login_required
 def my_target_test(request):
-    my_target = models.MyTargetToken.objects.get(user=request.user)
+    my_target = models.Token.objects.get(user=request.user,
+                                         source__name=models.MY_TARGET)
     data = my_target_ads.AgencyClients(my_target.access_token).run()
     ids = []
     for line in data:

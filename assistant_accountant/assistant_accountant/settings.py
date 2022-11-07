@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'debug_toolbar',
+    'django_celery_results',
+    'django_celery_beat',
     'core.apps.CoreConfig',
     'dashboard.apps.DashboardConfig',
     'users.apps.UsersConfig',
@@ -127,6 +129,13 @@ else:
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379',
+    }
+}
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
@@ -134,6 +143,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGOUT_REDIRECT_URL = 'users:login'
 LOGIN_REDIRECT_URL = 'about:index'
+
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_BROKER_URL = 'amqp://{}:{}@127.0.0.1:5672/'.format(
+    os.getenv('CELERY_USERNAME'),
+    os.getenv('CELERY_PASSWORD')
+)
+CELERY_CACHE_BACKEND = 'default'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 YANDEX_DIRECT_CLIENT_ID = os.getenv('YANDEX_DIRECT_CLIENT_ID')
 YANDEX_DIRECT_CLIENT_SECRET = os.getenv('YANDEX_DIRECT_CLIENT_SECRET')

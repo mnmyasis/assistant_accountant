@@ -12,7 +12,6 @@ from core.my_target import auth, exceptions
 from core.my_target import ads as my_target_ads
 from . import models
 
-
 @login_required
 def index(request):
     context = {
@@ -88,24 +87,50 @@ def yandex_test(request):
     }
     field_names = ['Login', 'ClientId', 'OverdraftSumAvailable', 'ClientInfo',
                    'AccountQuality']
+    payload = direct.Payload.payload_pagination(
+        criteria=selection_criteria,
+        fields=field_names,
+        limit=2000,
+        offset=0,
+        method='get'
+    )
+
     data = direct.AgencyClients(access_token=token.access_token,
-                                selection_criteria=selection_criteria,
-                                field_names=field_names,
-                                on_sandbox=False).get()
+                                payload=payload,
+                                on_sandbox=True).get()
     for line in data:
         print(json.dumps(line, indent=4))
-    # clients = data[0]['result']['Clients']
-    # for client in clients:
-    #     data = direct.ClientCostReport(access_token=token.access_token,
-    #                                    client_login=client['Login'],
-    #                                    on_sandbox=True).get()
-    #     print(data)
-    data = direct.Campaigns(
-        access_token=token.access_token,
-        field_names=['Id', 'Name', 'Type', 'Funds'],
-        client_login='fomin-spb-di'
-    ).get()
-    print(data)
+    for client in data:
+        client = client[0]
+        payload = direct.Payload.payload_statistic(
+            fields=['Cost', 'Clicks'],
+            params=[
+                ('ReportName', 'ACCOUNT_COST'),
+                ('ReportType', 'ACCOUNT_PERFORMANCE_REPORT'),
+                ('DateRangeType', 'AUTO'),
+                ('Format', 'TSV'),
+                ('IncludeVAT', 'NO'),
+                ('IncludeDiscount', 'NO')
+            ],
+        )
+        data_ = direct.ClientCostReport(access_token=token.access_token,
+                                        client_login=client['Login'],
+                                        payload=payload,
+                                        on_sandbox=True).get()
+        print(data_)
+        payload = direct.Payload.payload_pagination(
+            limit=10000,
+            offset=0,
+            method='get',
+            fields=['Id', 'Name', 'Type', 'Funds']
+        )
+        data_ = direct.Campaigns(
+            access_token=token.access_token,
+            payload=payload,
+            client_login=client['Login'],
+            on_sandbox=True
+        ).get()
+        print(data_)
     return redirect(
         reverse('about:index')
     )
@@ -187,9 +212,9 @@ def my_target_auth(request):
 def my_target_test(request):
     my_target = models.MyTargetToken.objects.get(user=request.user)
     data = my_target_ads.AgencyClients(my_target.access_token).run()
-    print(data)
     ids = []
     for line in data:
+        print(json.dumps(line, indent=4))
         ids.append(line['user']['id'])
     data = my_target_ads.SummaryStatistic(
         my_target.access_token,
@@ -197,7 +222,7 @@ def my_target_test(request):
         date_from='2022-01-01',
         date_to='2022-10-25'
     ).run()
-    print(data)
+    # print(data)
     return redirect(
         reverse('about:index')
     )

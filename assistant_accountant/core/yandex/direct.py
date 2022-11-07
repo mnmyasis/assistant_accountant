@@ -1,7 +1,7 @@
 import json
 from enum import Enum
 from time import sleep
-from typing import List, Dict, Union
+from typing import List, Dict, Tuple
 
 import requests
 from http import HTTPStatus
@@ -59,12 +59,89 @@ def exchange_code_on_token(client_id, client_secret, code):
     return response_json
 
 
+class Payload:
+
+    def __init__(self):
+        self.name = 'params'
+        self.payload = {
+            self.name: {
+                'FieldNames': []
+            },
+        }
+
+    def add_criteria(self, criteria: dict):
+        current = self.payload[self.name].get('SelectionCriteria')
+        if current:
+            current.update(criteria)
+        else:
+            self.payload[self.name]['SelectionCriteria'] = criteria
+
+    def add_field(self, field: str):
+        self.payload[self.name]['FieldNames'].append(field)
+        return self
+
+    def get_fields(self):
+        return self.payload[self.name].get('FieldNames')
+
+    def add_page(self, offset: int, limit: int):
+        self.payload[self.name].update(
+            {'Page': {'Limit': limit, 'Offset': offset}}
+        )
+
+    def add_params(self, key: str, value: str):
+        self.payload[self.name][key] = value
+
+    def change_offset(self, offset):
+        self.payload[self.name]['Page']['Offset'] = offset
+
+    def add_method(self, method: str):
+        self.payload['method'] = method
+
+    def __str__(self):
+        return str(json.dumps(self.payload, indent=4))
+
+    @staticmethod
+    def payload_fields(fields, criteria: Dict = None, method=None):
+        payload = Payload()
+        if method:
+            payload.add_method(method)
+        for field in fields:
+            payload.add_field(field)
+        if criteria:
+            payload.add_criteria(criteria)
+        return payload
+
+    @staticmethod
+    def payload_pagination(fields, offset, limit, criteria: Dict = None,
+                           method=None):
+        payload = Payload()
+        if method:
+            payload.add_method(method)
+        for field in fields:
+            payload.add_field(field)
+        if criteria:
+            payload.add_criteria(criteria)
+        payload.add_page(offset=offset, limit=limit)
+        return payload
+
+    @staticmethod
+    def payload_statistic(fields, params: List[Tuple], criteria: Dict = None):
+        payload = Payload()
+        for field in fields:
+            payload.add_field(field)
+        if criteria is None:
+            criteria = {}
+        payload.add_criteria(criteria)
+        for param in params:
+            payload.add_params(*param)
+        return payload
+
+
 class BaseApi:
     """
     Базовый класс для работы с API Яндекс Директ.\n
     BaseApi(access_token=...,
-            selection_criteria=...,\n
-            field_names=...,\n
+            payload=...,\n
             on_sandbox=False,\n
             language='ru').get()
     """
@@ -72,21 +149,17 @@ class BaseApi:
     URL = 'https://api.direct.yandex.com/'
     SANDBOX_URL = 'https://api-sandbox.direct.yandex.com/'
     VERSION_API = 'json/v5/'
-    PARAMS_KEY = 'params'
 
     def __init__(
             self,
             access_token: str,
-            field_names: List[str],
-            selection_criteria: Dict = None,
+            payload: Payload,
             on_sandbox=False,
             language='ru'
     ):
-        if selection_criteria is None:
-            selection_criteria = dict()
+
         self.access_token = access_token
-        self.selection_criteria = selection_criteria
-        self.field_names = field_names
+        self.payload = payload
         self.on_sandbox = on_sandbox
         self.language = language
         self.status_code = None
@@ -121,69 +194,12 @@ class BaseApi:
 
         return f'{url}{self.VERSION_API}{self.endpoint_service.value}'
 
-    def get_method(self) -> Union[str, None]:
-        """Возвращает метод запроса get, post, None."""
-        ...
-
-    def set_method(self, method: str, payload: Dict) -> Dict:
-        """Устанавливает метод запроса в payload."""
-        payload['method'] = method
-        return payload
-
-    def set_params(self, additional_payload_params, payload) -> Dict:
-        """Установка дополнительных параметров."""
-        for params in additional_payload_params:
-            for key, value in params.items():
-                if not key or not value:
-                    raise ValueError(
-                        f'{key}: {value}'
-                    )
-                payload[self.PARAMS_KEY][key] = value
-        return payload
-
-    def additional_payload_params(self) -> List[Dict]:
-        """
-        Для установки дополнительных параметров в дочерних классах,
-        необходимо переопределить и вернуть список словарей с параметрами
-        запроса.\n
-        Пример:
-        ----------
-        @property\n
-        def additional_payload_params(self) -> List[Dict]:
-            return [
-                {'ContractFieldNames': ['Price',]},
-                {
-                    'Page': {
-                        'Limit': LIMIT,
-                        'Offset': OFFSET
-                    }
-                },
-            ]
-        """
-        ...
-
-    def set_payload(self, payload: Dict) -> Dict:
-        """Устанавливает дополнительные данные в запрос."""
-        if self.get_method():
-            payload = self.set_method(self.get_method(), payload)
-        if self.additional_payload_params():
-            payload = self.set_params(
-                self.additional_payload_params(),
-                payload)
-        return payload
-
-    def get_payload(self) -> Dict:
+    def get_payload(self) -> Payload:
         """
         Возвращает payload.
         :return:payload
         """
-        payload = {
-            self.PARAMS_KEY: {
-                "SelectionCriteria": self.selection_criteria,
-                "FieldNames": self.field_names,
-            }
-        }
-        return payload
+        return self.payload
 
     def get_response(self, url, payload, headers) -> Response:
         """
@@ -197,7 +213,7 @@ class BaseApi:
         """
         return requests.post(
             url,
-            json.dumps(payload),
+            str(payload),
             headers=headers
         )
 
@@ -212,7 +228,7 @@ class BaseApi:
             self,
             url: str,
             headers: Dict[str, str],
-            payload: Dict
+            payload: Payload
     ) -> Response:
         """Запрос к API."""
         try:
@@ -252,7 +268,6 @@ class BaseApi:
     def run_api_request(self) -> Dict:
         """Оркестратор."""
         payload = self.get_payload()
-        payload = self.set_payload(payload)
         url = self.get_url()
         headers = self.get_headers()
         response = self.api_request(url=url, headers=headers, payload=payload)
@@ -275,41 +290,21 @@ class AgencyClients(BaseApi):
     """
     Получает список клиентов агентства из API Яндекс директ.\n
     AgencyClients(access_token=...,
-                selection_criteria=...,\n
-                field_names=...,\n
+                payload=...,\n
                 on_sandbox=False,\n
                 language='ru').get()
     """
-    LIMIT = 2000
-    OFFSET = 0
-    CONTRACT_FIELD_NAMES = {'ContractFieldNames': ["Price", ]}
-    PAGINATION_PARAMS = {
-        'Page': {
-            'Limit': LIMIT,
-            'Offset': OFFSET
-        }
-    }
     RESULT_KEY = 'result'
     LIMITED_BY_KEY = 'LimitedBy'
-    METHOD = 'get'
 
     @property
     def endpoint_service(self) -> Endpoints:
         """Endpoint сервиса."""
         return Endpoints.AGENCY_CLIENTS
 
-    def additional_payload_params(self) -> List[Dict]:
-        return [
-            self.CONTRACT_FIELD_NAMES,
-            self.PAGINATION_PARAMS,
-        ]
-
-    def get_method(self) -> Union[str, None]:
-        return self.METHOD
-
     def change_offset(self, limited_by) -> None:
         """Меняет параметр offset в payload."""
-        self.OFFSET = limited_by
+        self.payload.change_offset(limited_by)
 
     def get(self):
         data = []
@@ -338,16 +333,9 @@ class BaseReport(BaseApi):
     def endpoint_service(self) -> Endpoints:
         return Endpoints.REPORTS
 
-    def get_response(self, url, payload, headers) -> Response:
-        return requests.post(
-            url,
-            json.dumps(payload, indent=self.INDENT),
-            headers=headers)
-
     def run_api_request(self) -> Dict:
         """Оркестратор."""
         payload = self.get_payload()
-        payload = self.set_payload(payload)
         url = self.get_url()
         headers = self.get_headers()
         while True:
@@ -373,7 +361,7 @@ class BaseReport(BaseApi):
                 sleep(retry_in)
             else:
                 raise exceptions.UnexpectedError(
-                    f'endpoint: {self.ENDPOINT} '
+                    f'endpoint: {self.endpoint_service} '
                     f'payload: {payload} ',
                     f'headers: {headers} ',
                     f'status_code: {self.status_code} ',
@@ -384,37 +372,21 @@ class ClientCostReport(BaseReport):
     """
     Отчет затрат по клиенту.\n
     """
-    REPORT_TYPE = 'ACCOUNT_PERFORMANCE_REPORT'
-    REPORT_NAME = 'ACCOUNT_COST'
-    FORMAT = 'TSV'
-    INCLUDE_VAT = 'NO'
-    INCLUDE_DISCOUNT = 'NO'
+
     COST_FIELD = 'Cost'
     CLICKS_FIELD = 'Clicks'
-    FIELD_NAMES = [COST_FIELD, CLICKS_FIELD]
 
     def __init__(
             self,
             access_token: str,
             client_login: str,
+            payload: Payload,
             on_sandbox: bool = False,
             language: str = 'ru'
     ):
-        super().__init__(access_token, self.FIELD_NAMES,
+        super().__init__(access_token, payload=payload,
                          on_sandbox=on_sandbox, language=language)
         self.client_login = client_login
-
-    def additional_payload_params(self) -> List[Dict]:
-        return [
-            {
-                'ReportName': self.REPORT_NAME,
-                'ReportType': self.REPORT_TYPE,
-                'DateRangeType': 'AUTO',
-                'Format': self.FORMAT,
-                'IncludeVAT': self.INCLUDE_VAT,
-                'IncludeDiscount': self.INCLUDE_DISCOUNT
-            }
-        ]
 
     def get_headers(self) -> Dict[str, str]:
         headers = self.headers
@@ -430,7 +402,7 @@ class ClientCostReport(BaseReport):
         result = {}
         if response.text:
             temp_result = response.text.split('\t')
-            keys = self.FIELD_NAMES
+            keys = self.payload.get_fields()
             for key, value in zip(keys, temp_result):
                 if key == self.COST_FIELD:
                     value = float(value)
@@ -441,25 +413,19 @@ class ClientCostReport(BaseReport):
 
 
 class Campaigns(BaseApi):
-    METHOD = 'get'
     RESULT_KEY = 'result'
     LIMITED_BY_KEY = 'LimitedBy'
-    LIMIT = 10000
-    OFFSET = 0
-    PAGINATION_PARAMS = {
-        'Page': {
-            'Limit': LIMIT,
-            'Offset': OFFSET
-        }
-    }
 
     def __init__(
             self,
             access_token: str,
-            field_names: List[str],
-            client_login: str
+            payload: Payload,
+            client_login: str,
+            on_sandbox: bool = False
     ):
-        super().__init__(access_token=access_token, field_names=field_names)
+        super().__init__(access_token=access_token,
+                         payload=payload,
+                         on_sandbox=on_sandbox)
         self.client_login = client_login
 
     @property
@@ -471,14 +437,6 @@ class Campaigns(BaseApi):
         headers['Client-Login'] = self.client_login
         return headers
 
-    def get_method(self) -> Union[str, None]:
-        return self.METHOD
-
-    def additional_payload_params(self) -> List:
-        return [
-            self.PAGINATION_PARAMS
-        ]
-
     def get(self):
         data = []
         has_all_clients_received = False
@@ -487,7 +445,7 @@ class Campaigns(BaseApi):
             limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
             data.append(response.get(self.RESULT_KEY).get('Campaigns'))
             if limited_by:
-                self.OFFSET = limited_by
+                self.payload.change_offset(limited_by)
             else:
                 has_all_clients_received = True
         return data

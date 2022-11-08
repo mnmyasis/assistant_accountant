@@ -18,3 +18,5 @@ class VkManyRequestPerSecondError(Exception):
     pass
 
 
+class VKMaxCountAttemptError(Exception):
+    pass

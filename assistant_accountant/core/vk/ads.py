@@ -1,4 +1,3 @@
-from time import sleep
 from typing import Dict
 
 import requests
@@ -11,7 +10,8 @@ class BaseApi:
     API_VERSION = '5.131'
     API_URL = 'https://api.vk.com/method/'
 
-    FLOOD_ERROR = 9
+    FLOOD_ERROR_CODE = 9
+    MANY_REQUEST_PER_SECOND_ERROR_CODE = 6
     REQUEST_TIMEOUT = 1
 
     def __init__(self, access_token: str):
@@ -60,8 +60,10 @@ class BaseApi:
         error = data.get('error')
         if error:
             error_code = error.get('error_code')
-            if error_code == self.FLOOD_ERROR:
+            if error_code == self.FLOOD_ERROR_CODE:
                 raise exceptions.VkFloodControlError()
+            elif error_code == self.MANY_REQUEST_PER_SECOND_ERROR_CODE:
+                raise exceptions.VkManyRequestPerSecondError()
             else:
                 raise exceptions.VkDataError(error)
         return data
@@ -70,14 +72,10 @@ class BaseApi:
         """Метод оркестратор."""
         url = self.get_url()
         params = self.get_params()
-        while True:
-            try:
-                response = self.get_response(url, params)
-                data = self.dict_converting(response)
-                data = self.error_checking(data)
-                return data
-            except exceptions.VkFloodControlError:
-                sleep(self.REQUEST_TIMEOUT)
+        response = self.get_response(url, params)
+        data = self.dict_converting(response)
+        data = self.error_checking(data)
+        return data
 
     def get(self):
         """Интерфейс."""
@@ -99,7 +97,7 @@ class Clients(BaseApi):
 
     METHOD = 'ads.getClients'
 
-    def __init__(self, access_token: str, account_id: str):
+    def __init__(self, access_token: str, account_id: int):
         super().__init__(access_token)
         self.account_id = account_id
 

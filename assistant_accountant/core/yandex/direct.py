@@ -312,7 +312,7 @@ class AgencyClients(BaseApi):
         while not has_all_clients_received:
             response = self.run_api_request()
             limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
-            data.append(response.get(self.RESULT_KEY).get('Clients'))
+            data += response.get(self.RESULT_KEY).get('Clients')
             if limited_by:
                 self.change_offset(limited_by)
             else:
@@ -443,7 +443,7 @@ class Campaigns(BaseApi):
         while not has_all_clients_received:
             response = self.run_api_request()
             limited_by = response[self.RESULT_KEY].get(self.LIMITED_BY_KEY)
-            data.append(response.get(self.RESULT_KEY).get('Campaigns'))
+            data += response.get(self.RESULT_KEY).get('Campaigns')
             if limited_by:
                 self.payload.change_offset(limited_by)
             else:

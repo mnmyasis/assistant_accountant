@@ -12,3 +12,9 @@ class VkFloodControlError(Exception):
 
 class VkStatisticMaxObjectError(Exception):
     pass
+
+
+class VkManyRequestPerSecondError(Exception):
+    pass
+
+

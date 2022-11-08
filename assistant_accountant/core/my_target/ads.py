@@ -61,7 +61,7 @@ class BaseApi:
         """Проверка ошибок API."""
         response_error = response.json()
         error = response_error.get('error')
-        code = response_error.get('code')
+        code = error.get('code')
         if error == self.TOKEN_LIMIT_ERROR:
             raise exceptions.MyTargetTokenLimitError(response_error)
         if code == self.INVALID_TOKEN:

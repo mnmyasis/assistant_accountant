@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from django.conf import settings
 
 from .models import YANDEX_DIRECT, MY_TARGET, VK_ADS, Token
-from core.yandex.direct import AgencyClients, Payload, ClientCostReport
+from core.yandex import direct as yandex_direct
 from core.vk import ads as vk_ads
 from core.vk.exceptions import (VkFloodControlError,
                                 VkManyRequestPerSecondError,
@@ -19,7 +19,7 @@ from core.my_target.exceptions import (MyTargetExpiredTokenError,
 class Ads(ABC):
 
     @abstractmethod
-    def get(self):
+    def get(self) -> List[Dict]:
         ...
 
 
@@ -32,71 +32,36 @@ class API:
         return self.ads.get()
 
 
-class Yandex(Ads):
-
-    def __init__(self, user_id: int, on_sandbox=False):
-        self.on_sandbox = on_sandbox
-        self.user_id = user_id
-        self.tokens = Token.objects.get(user__pk=self.user_id,
-                                        source__name=YANDEX_DIRECT)
-
-
-class YandexAgencyClients(Yandex):
+class YandexCollectData(Ads):
     LIMIT = 2000
     METHOD = 'get'
 
-    def get_selection_criteria(self) -> Dict:
-        return {'Archived': 'NO'}
+    def __init__(
+            self, user_id: int,
+            date_from: str,
+            date_to: str,
+            on_sandbox=False
+    ):
+        self.on_sandbox = on_sandbox
+        self.user_id = user_id
+        self.date_from = date_from
+        self.date_to = date_to
+        self.tokens = Token.objects.get(user__pk=self.user_id,
+                                        source__name=YANDEX_DIRECT)
+        self.data = {}
 
-    def get_fields(self) -> List[str]:
-        return ['Login', 'ClientId', 'ClientInfo']
-
-    def get_payload(self) -> Payload:
-        return Payload.payload_pagination(
-            criteria=self.get_selection_criteria(),
-            fields=self.get_fields(),
+    def agency_clients_payload(self) -> yandex_direct.Payload:
+        return yandex_direct.Payload.payload_pagination(
+            criteria={'Archived': 'NO'},
+            fields=['Login', 'ClientId', 'ClientInfo'],
             limit=self.LIMIT,
             offset=0,
             method=self.METHOD
         )
 
-    def prepare_data(self, data):
-        agency_clients = []
-        for raw in data:
-            cl = {
-                'client_id': raw['ClientId'],
-                'name': raw['Login'],
-                'source': YANDEX_DIRECT,
-                'user_id': self.user_id
-            }
-            agency_clients.append(cl)
-        return agency_clients
-
-    def get(self):
-        data = AgencyClients(access_token=self.tokens.access_token,
-                             payload=self.get_payload(),
-                             on_sandbox=self.on_sandbox).get()
-        data = self.prepare_data(data)
-        return data
-
-
-class YandexStatistic(Yandex):
-
-    def __init__(
-            self,
-            user_id: int,
-            client_login: str,
-            date_from: str,
-            date_to: str,
-            on_sandbox: bool = False):
-        self.client_login = client_login
-        self.date_from = date_from
-        self.date_to = date_to
-        super().__init__(user_id=user_id, on_sandbox=on_sandbox)
-
-    def get_payload(self) -> Payload:
-        payload = Payload.payload_statistic(
-            fields=['Cost', 'Clicks'],
+    def statistic_payload(self) -> yandex_direct.Payload:
+        payload = yandex_direct.Payload.payload_statistic(
+            fields=['Date', 'Cost'],
             criteria={'DateFrom': self.date_from, 'DateTo': self.date_to},
             params=[
                 ('ReportName', 'ACCOUNT_COST'),
@@ -109,16 +74,49 @@ class YandexStatistic(Yandex):
         )
         return payload
 
-    def prepare_data(self, data):
-        return data
+    def prepare_agency_clients(self, ag_data):
+        for raw in ag_data:
+            client_id = raw['ClientId']
+            self.data[client_id] = {
+                'name': raw['Login'],
+                'source': YANDEX_DIRECT,
+                'user_id': self.user_id,
+                'client_id': client_id,
+                'stats': []
+            }
 
-    def get(self):
-        data = ClientCostReport(access_token=self.tokens.access_token,
-                                client_login=self.client_login,
-                                payload=self.get_payload(),
-                                on_sandbox=self.on_sandbox).get()
-        data = self.prepare_data(data)
-        return data
+    def prepare_statistic(self, stat_data: Dict, client_id: int):
+        for raw in stat_data['result']:
+            self.data[client_id]['stats'].append({
+                'cost': raw['Cost'],
+                'date': raw['Date']
+            })
+
+    def api_request(self, yandex_api: yandex_direct.BaseApi):
+        return yandex_api.get()
+
+    def get_data(self):
+        return list(self.data.values())
+
+    def get(self) -> List[Dict]:
+        agency_clients = yandex_direct.AgencyClients(
+            access_token=self.tokens.access_token,
+            payload=self.agency_clients_payload(),
+            on_sandbox=self.on_sandbox)
+        ag_data = self.api_request(agency_clients)
+        self.prepare_agency_clients(ag_data)
+
+        for data_raw in self.get_data():
+            statistic = yandex_direct.ClientCostReport(
+                access_token=self.tokens.access_token,
+                client_login=data_raw['name'],
+                payload=self.statistic_payload(),
+                on_sandbox=False
+            )
+            stat_data = self.api_request(statistic)
+            self.prepare_statistic(stat_data=stat_data,
+                                   client_id=data_raw['client_id'])
+        return self.get_data()
 
 
 class VKCollectData(Ads):
@@ -272,7 +270,7 @@ class MyTargetCollectData(Ads):
     def get_clients_id(self, ag_data: List) -> List[int]:
         return [raw['user']['id'] for raw in ag_data]
 
-    def get(self):
+    def get(self) -> List[Dict]:
         agency_clients = my_target_ads.AgencyClients(
             self.tokens.access_token)
         ag_data = self.api_request(agency_clients)

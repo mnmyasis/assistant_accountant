@@ -403,7 +403,6 @@ class ClientCostReport(BaseReport):
         if response.text:
             metrics = response.text.replace('\n', '\t').split('\t')
             fields = self.payload.get_fields()
-            print(metrics)
             raw = {}
             i = 0
             for metric_id in range(0, len(metrics)):

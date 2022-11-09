@@ -2,7 +2,7 @@ import json
 
 from celery import shared_task
 
-from .ads import (API, YandexAgencyClients, VKCollectData,
+from .ads import (API, YandexCollectData, VKCollectData,
                   MyTargetCollectData)
 
 
@@ -10,7 +10,7 @@ from .ads import (API, YandexAgencyClients, VKCollectData,
 def agency_clients(user_id: int):
     date_from = '2022-11-01'
     date_to = '2022-11-09'
-    yandex = YandexAgencyClients(user_id, on_sandbox=True)
+    yandex = YandexCollectData(user_id, date_from, date_to)
     vk = VKCollectData(user_id, date_from, date_to)
     my_target = MyTargetCollectData(user_id, date_from, date_to)
     cabinets = [yandex, my_target, vk]

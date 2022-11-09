@@ -105,41 +105,41 @@ def yandex_test(request):
 
     data = direct.AgencyClients(access_token=token.access_token,
                                 payload=payload,
-                                on_sandbox=True).get()
-    for line in data:
-        print(json.dumps(line, indent=4))
+                                on_sandbox=False).get()
+    # for line in data:
+    #     print(json.dumps(line, indent=4))
+    i = 0
     for client in data:
-        client = client
         payload = direct.Payload.payload_statistic(
-            fields=['Cost', 'Clicks', 'Date'],
-            # criteria={'DateFrom': '2022-01-01', 'DateTo': '2022-11-08'},
+            fields=['Date', 'Cost'],
+            criteria={'DateFrom': '2022-11-01', 'DateTo': '2022-11-02'},
             params=[
                 ('ReportName', 'ACCOUNT_COST'),
                 ('ReportType', 'ACCOUNT_PERFORMANCE_REPORT'),
-                ('DateRangeType', 'AUTO'),
+                ('DateRangeType', 'CUSTOM_DATE'),
                 ('Format', 'TSV'),
                 ('IncludeVAT', 'NO'),
                 ('IncludeDiscount', 'NO')
             ],
         )
+        print(client['Login'])
         data_ = direct.ClientCostReport(access_token=token.access_token,
                                         client_login=client['Login'],
                                         payload=payload,
-                                        on_sandbox=True).get()
-        print(data_)
-        payload = direct.Payload.payload_pagination(
-            limit=10000,
-            offset=0,
-            method='get',
-            fields=['Id', 'Name', 'Type', 'Funds']
-        )
-        data_ = direct.Campaigns(
-            access_token=token.access_token,
-            payload=payload,
-            client_login=client['Login'],
-            on_sandbox=True
-        ).get()
-        print(data_)
+                                        on_sandbox=False).get()
+        print(json.dumps(data_, indent=4))
+        # payload = direct.Payload.payload_pagination(
+        #     limit=10000,
+        #     offset=0,
+        #     method='get',
+        #     fields=['Id', 'Name', 'Type', 'Funds']
+        # )
+        # data_ = direct.Campaigns(
+        #     access_token=token.access_token,
+        #     payload=payload,
+        #     client_login=client['Login'],
+        #     on_sandbox=False
+        # ).get()
     return redirect(
         reverse('about:index')
     )
@@ -230,7 +230,7 @@ def my_target_test(request):
     for line in data:
         # print(json.dumps(line, indent=4))
         ids.append(line['user']['id'])
-    ids = [ids[0],]
+    ids = [ids[0], ]
     data = my_target_ads.SummaryStatistic(
         my_target.access_token,
         clients_id=ids,

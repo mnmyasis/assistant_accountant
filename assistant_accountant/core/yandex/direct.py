@@ -399,17 +399,22 @@ class ClientCostReport(BaseReport):
 
     def api_response_decode(self, response):
         response.encoding = 'utf-8'
-        result = {}
+        result = []
         if response.text:
-            temp_result = response.text.split('\t')
-            keys = self.payload.get_fields()
-            for key, value in zip(keys, temp_result):
-                if key == self.COST_FIELD:
-                    value = float(value)
-                if key == self.CLICKS_FIELD:
-                    value = int(value)
-                result[key] = value
-        return result
+            metrics = response.text.replace('\n', '\t').split('\t')
+            fields = self.payload.get_fields()
+            print(metrics)
+            raw = {}
+            i = 0
+            for metric_id in range(0, len(metrics)):
+                if i > len(fields) - 1:
+                    result.append(raw)
+                    raw = {}
+                    i = 0
+                current_field = fields[i]
+                raw[current_field] = metrics[metric_id]
+                i += 1
+        return {'result': result}
 
 
 class Campaigns(BaseApi):

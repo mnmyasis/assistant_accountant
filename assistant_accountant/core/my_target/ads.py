@@ -170,12 +170,12 @@ class SummaryStatistic(BaseApi):
     def __init__(
             self,
             access_token: str,
-            ids: List[int],
+            clients_id: List[int],
             date_from: str,
             date_to: str
     ):
         self.access_token = access_token
-        self.ids = ids
+        self.clients_id = clients_id
         self.date_from = date_from
         self.date_to = date_to
 
@@ -189,7 +189,11 @@ class SummaryStatistic(BaseApi):
     def get_params(self) -> Dict:
         return {
             'metrics': 'base',
-            'id': self.ids,
+            'id': self.clients_id,
             'date_from': self.date_from,
             'date_to': self.date_to
         }
+
+
+class DayStatistic(SummaryStatistic):
+    ENDPOINT = 'statistics/users/day.json'

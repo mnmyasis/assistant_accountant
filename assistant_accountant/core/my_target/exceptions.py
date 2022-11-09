@@ -16,3 +16,7 @@ class MyTargetExpiredTokenError(Exception):
 
 class MyTargetOtherError(Exception):
     pass
+
+
+class MyTargetMaxAttemptCountError(Exception):
+    pass

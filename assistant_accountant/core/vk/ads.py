@@ -144,8 +144,8 @@ class Statistic(BaseApi):
     def __init__(
             self,
             access_token: str,
-            account_id: str,
-            ids: list,
+            account_id: int,
+            id_clients: list,
             date_from: str,
             date_to: str,
             ids_type: str = 'client',
@@ -153,7 +153,7 @@ class Statistic(BaseApi):
     ):
         super().__init__(access_token)
         self.account_id = account_id
-        self.ids = ids
+        self.id_clients = id_clients
         self.date_from = date_from
         self.date_to = date_to
         self.ids_type = ids_type
@@ -166,11 +166,12 @@ class Statistic(BaseApi):
     def get_params(self) -> Dict:
         params = super().get_params()
         params['account_id'] = self.account_id
-        if len(self.ids) > self.MAX_IDS:
+        if len(self.id_clients) > self.MAX_IDS:
             raise exceptions.VkStatisticMaxObjectError(
-                f'Object limit exceeded: {len(self.ids)} > {self.MAX_IDS}'
+                f'Object limit exceeded: {len(self.id_clients)} > '
+                f'{self.MAX_IDS}'
             )
-        params['ids'] = ','.join([str(x) for x in self.ids])
+        params['ids'] = ','.join([str(x) for x in self.id_clients])
         params['ids_type'] = self.ids_type
         params['date_from'] = self.date_from
         params['date_to'] = self.date_to

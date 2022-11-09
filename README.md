@@ -11,6 +11,8 @@ VK_CLIENT_SECRET=
 VK_REDIRECT_URL=
 MY_TARGET_CLIENT_ID=
 MY_TARGET_CLIENT_SECRET=
+CELERY_USERNAME=
+CELERY_PASSWORD=
 ```
 
 # Запуск проекта:
@@ -44,6 +46,7 @@ python manage.py createsuperuser
 # Технологии:
 
  - Django
+ - Celery
 
 # Авторы:
 

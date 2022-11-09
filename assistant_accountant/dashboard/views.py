@@ -109,9 +109,10 @@ def yandex_test(request):
     for line in data:
         print(json.dumps(line, indent=4))
     for client in data:
-        client = client[0]
+        client = client
         payload = direct.Payload.payload_statistic(
-            fields=['Cost', 'Clicks'],
+            fields=['Cost', 'Clicks', 'Date'],
+            # criteria={'DateFrom': '2022-01-01', 'DateTo': '2022-11-08'},
             params=[
                 ('ReportName', 'ACCOUNT_COST'),
                 ('ReportType', 'ACCOUNT_PERFORMANCE_REPORT'),
@@ -171,7 +172,7 @@ def vk_test(request):
         data = ads.Statistic(
             access_token=vk_tokens.access_token,
             account_id=account,
-            ids=ids,
+            id_clients=ids,
             date_from='2014',
             date_to='2022'
         ).get()
@@ -227,15 +228,16 @@ def my_target_test(request):
     data = my_target_ads.AgencyClients(my_target.access_token).run()
     ids = []
     for line in data:
-        print(json.dumps(line, indent=4))
+        # print(json.dumps(line, indent=4))
         ids.append(line['user']['id'])
+    ids = [ids[0],]
     data = my_target_ads.SummaryStatistic(
         my_target.access_token,
-        ids=ids,
-        date_from='2022-01-01',
+        clients_id=ids,
+        date_from='2022-10-20',
         date_to='2022-10-25'
     ).run()
-    # print(data)
+    print(json.dumps(data, indent=4))
     return redirect(
         reverse('about:index')
     )

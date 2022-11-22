@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from time import sleep
 from typing import List, Dict, Any
 
@@ -34,6 +35,7 @@ class API:
 
 class YandexCollectData(Ads):
     LIMIT = 2000
+    CAMPAIGNS_LIMIT = 10000
     METHOD = 'get'
 
     def __init__(
@@ -74,10 +76,20 @@ class YandexCollectData(Ads):
         )
         return payload
 
+    def account_management_payload(
+            self,
+            logins: List[str]
+    ) -> List[yandex_direct.PayloadV4]:
+        payloads = yandex_direct.PayloadV4.payload_account_management(
+            logins=logins
+        )
+        return payloads
+
     def prepare_agency_clients(self, ag_data):
         for raw in ag_data:
             client_id = raw['ClientId']
-            self.data[client_id] = {
+            login = raw['Login']
+            self.data[login] = {
                 'name': raw['Login'],
                 'source': YANDEX_DIRECT,
                 'user_id': self.user_id,
@@ -85,12 +97,20 @@ class YandexCollectData(Ads):
                 'stats': []
             }
 
-    def prepare_statistic(self, stat_data: Dict, client_id: int):
+    def prepare_statistic(self, stat_data: Dict, login: str):
         for raw in stat_data['result']:
-            self.data[client_id]['stats'].append({
+            self.data[login]['stats'].append({
                 'cost': raw['Cost'],
                 'date': raw['Date']
             })
+
+    def prepare_account_management(self, acc_management_data):
+        for account_data in acc_management_data['data']['Accounts']:
+            login = account_data['Login']
+            self.data[login]['balance'] = {
+                'amount': float(account_data['Amount']),
+                'date': datetime.now().strftime('%Y-%m-%d')
+            }
 
     def api_request(self, yandex_api: yandex_direct.BaseApi):
         return yandex_api.get()
@@ -98,7 +118,7 @@ class YandexCollectData(Ads):
     def get_data(self):
         return list(self.data.values())
 
-    def get(self) -> List[Dict]:
+    def agency_clients(self):
         agency_clients = yandex_direct.AgencyClients(
             access_token=self.tokens.access_token,
             payload=self.agency_clients_payload(),
@@ -106,6 +126,7 @@ class YandexCollectData(Ads):
         ag_data = self.api_request(agency_clients)
         self.prepare_agency_clients(ag_data)
 
+    def statistic(self):
         for data_raw in self.get_data():
             statistic = yandex_direct.ClientCostReport(
                 access_token=self.tokens.access_token,
@@ -115,7 +136,22 @@ class YandexCollectData(Ads):
             )
             stat_data = self.api_request(statistic)
             self.prepare_statistic(stat_data=stat_data,
-                                   client_id=data_raw['client_id'])
+                                   login=data_raw['name'])
+
+    def account_management(self):
+        logins = list(self.data.keys())
+        for payload in self.account_management_payload(logins):
+            account_management = yandex_direct.AccountManagement(
+                access_token=self.tokens.access_token,
+                payload=payload,
+            )
+            data = self.api_request(account_management)
+            self.prepare_account_management(data)
+
+    def get(self) -> List[Dict]:
+        self.agency_clients()
+        self.statistic()
+        self.account_management()
         return self.get_data()
 
 

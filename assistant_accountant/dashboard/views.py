@@ -102,32 +102,36 @@ def yandex_test(request):
         offset=0,
         method='get'
     )
-
+    on_sandbox = False
     data = direct.AgencyClients(access_token=token.access_token,
                                 payload=payload,
-                                on_sandbox=False).get()
+                                on_sandbox=on_sandbox).get()
     # for line in data:
     #     print(json.dumps(line, indent=4))
     i = 0
+    logins = []
     for client in data:
-        payload = direct.Payload.payload_statistic(
-            fields=['Date', 'Cost'],
-            criteria={'DateFrom': '2022-11-01', 'DateTo': '2022-11-02'},
-            params=[
-                ('ReportName', 'ACCOUNT_COST'),
-                ('ReportType', 'ACCOUNT_PERFORMANCE_REPORT'),
-                ('DateRangeType', 'CUSTOM_DATE'),
-                ('Format', 'TSV'),
-                ('IncludeVAT', 'NO'),
-                ('IncludeDiscount', 'NO')
-            ],
-        )
-        print(client['Login'])
-        data_ = direct.ClientCostReport(access_token=token.access_token,
-                                        client_login=client['Login'],
-                                        payload=payload,
-                                        on_sandbox=False).get()
-        print(json.dumps(data_, indent=4))
+        print(data)
+        print(client['Login'], ' ', client['ClientId'])
+        logins.append(client['Login'])
+        # payload = direct.Payload.payload_statistic(
+        #     fields=['Date', 'Cost'],
+        #     criteria={'DateFrom': '2022-11-01', 'DateTo': '2022-11-02'},
+        #     params=[
+        #         ('ReportName', 'ACCOUNT_COST'),
+        #         ('ReportType', 'ACCOUNT_PERFORMANCE_REPORT'),
+        #         ('DateRangeType', 'CUSTOM_DATE'),
+        #         ('Format', 'TSV'),
+        #         ('IncludeVAT', 'NO'),
+        #         ('IncludeDiscount', 'NO')
+        #     ],
+        # )
+        #
+        # data_ = direct.ClientCostReport(access_token=token.access_token,
+        #                                 client_login=client['Login'],
+        #                                 payload=payload,
+        #                                 on_sandbox=False).get()
+
         # payload = direct.Payload.payload_pagination(
         #     limit=10000,
         #     offset=0,
@@ -138,8 +142,20 @@ def yandex_test(request):
         #     access_token=token.access_token,
         #     payload=payload,
         #     client_login=client['Login'],
-        #     on_sandbox=False
+        #     on_sandbox=on_sandbox
         # ).get()
+        # print(json.dumps(data_, indent=4))
+
+    payloads = direct.PayloadV4.payload_account_management(
+        logins=logins
+    )
+    for payload in payloads:
+        data = direct.AccountManagement(
+            access_token=token.access_token,
+            payload=payload,
+            on_sandbox=on_sandbox
+        ).get()
+        print(json.dumps(data, indent=4))
     return redirect(
         reverse('about:index')
     )

@@ -16,6 +16,7 @@ class Endpoints(Enum):
     CAMPAIGNS = 'campaigns'
     TOKEN = 'token'
     AUTHORIZE = 'authorize'
+    ACCOUNT_MANAGEMENT = 'AccountManagement'
 
 
 def get_url_verification_code_request(client_id):
@@ -135,6 +136,33 @@ class Payload:
         for param in params:
             payload.add_params(*param)
         return payload
+
+
+class PayloadV4(Payload):
+    def __init__(self):
+        super().__init__()
+        self.name = 'param'
+        self.payload = {
+            self.name: {
+            }
+        }
+
+    def add_token(self, token):
+        self.payload['token'] = token
+
+    @staticmethod
+    def payload_account_management(logins: List[str]) -> List:
+        step = 50
+        end = step
+        logins_len = len(logins)
+        payloads = []
+        for start in range(0, logins_len, step):
+            payload = PayloadV4()
+            payload.add_params('Action', 'Get')
+            payload.add_criteria({'Logins': logins[start: end]})
+            payloads.append(payload)
+            end += step
+        return payloads
 
 
 class BaseApi:
@@ -452,7 +480,65 @@ class Campaigns(BaseApi):
                 self.payload.change_offset(limited_by)
             else:
                 has_all_clients_received = True
-        return data
+        return {'result': data}
+
+
+class BaseApiV4(BaseApi):
+    URL = 'https://api.direct.yandex.ru/'
+    SANDBOX_URL = 'https://api-sandbox.direct.yandex.ru/'
+    VERSION_API = 'live/v4/json/'
+
+    def __init__(
+            self,
+            access_token: str,
+            payload: PayloadV4,
+            on_sandbox: bool = False
+    ):
+        super().__init__(access_token, payload, on_sandbox)
+        self.payload = payload
+
+    def get_payload(self) -> PayloadV4:
+        method = str(self.endpoint_service.value)
+        self.payload.add_method(method=method)
+        self.payload.add_token(self.access_token)
+        return self.payload
+
+    def get_url(self) -> str:
+        """Возвращает урл для запроса."""
+        if self.on_sandbox:
+            url = self.SANDBOX_URL
+        else:
+            url = self.URL
+
+        return f'{url}{self.VERSION_API}'
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        return {}
+
+    def check_response(self, response: Dict) -> Dict:
+        """Проверка ответа от API директа."""
+        if not isinstance(response, dict):
+            raise TypeError(
+                f'The response it shuold be dict, not a {type(response)}'
+            )
+        if response.get('error_code'):
+            error = response
+            raise exceptions.YandexDirectResponseError(
+                f'Endpoint: {self.endpoint_service} '
+                f'Payload: {self.get_payload()} '
+                f'Error: {error} '
+                f'Full url: {self.get_url()}'
+            )
+        return response
+
+
+class AccountManagement(BaseApiV4):
+    RESULT_KEY = 'result'
+
+    @property
+    def endpoint_service(self) -> Endpoints:
+        return Endpoints.ACCOUNT_MANAGEMENT
 
 
 if __name__ == '__main__':

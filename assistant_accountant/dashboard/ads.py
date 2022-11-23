@@ -17,6 +17,19 @@ from core.my_target.exceptions import (MyTargetExpiredTokenError,
                                        MyTargetMaxAttemptCountError)
 
 
+def get(user_id: int, date_from: str, date_to: str) -> List[Dict]:
+    """Format date_from, date_to %Y-%d-%m ."""
+    yandex = YandexCollectData(user_id, date_from, date_to)
+    vk = VKCollectData(user_id, date_from, date_to)
+    my_target = MyTargetCollectData(user_id, date_from, date_to)
+    cabinets = [yandex, my_target, vk]
+    data = []
+    for cabinet in cabinets:
+        api = API(cabinet)
+        data += api.collect_data_ads()
+    return data
+
+
 class Ads(ABC):
 
     def current_date(self):
@@ -97,7 +110,11 @@ class YandexCollectData(Ads):
                 'source': YANDEX_DIRECT,
                 'user_id': self.user_id,
                 'client_id': client_id,
-                'stats': []
+                'stats': [],
+                'balance': {
+                    'amount': 0.0,
+                    'date': self.current_date()
+                }
             }
 
     def prepare_statistic(self, stat_data: Dict, login: str):
@@ -110,10 +127,8 @@ class YandexCollectData(Ads):
     def prepare_account_management(self, acc_management_data):
         for account_data in acc_management_data['data']['Accounts']:
             login = account_data['Login']
-            self.data[login]['balance'] = {
-                'amount': float(account_data['Amount']),
-                'date': self.current_date()
-            }
+            self.data[login]['balance']['amount'] = float(
+                account_data['Amount'])
 
     def api_request(self, yandex_api: yandex_direct.BaseApi):
         return yandex_api.get()
@@ -184,6 +199,10 @@ class VKCollectData(Ads):
                 'user_id': self.user_id,
                 'account_id': account_id,
                 'source': VK_ADS,
+                'balance': {
+                    'amount': 0.0,
+                    'date': self.current_date()
+                }
             }
 
     def prepare_statistic(self, data):
@@ -240,8 +259,8 @@ class VKCollectData(Ads):
                 access_token=self.tokens.access_token,
                 account_id=account_id,
                 id_clients=self.get_clients_id(ag_data),
-                date_from='2022-11-01',
-                date_to='2022-11-09',
+                date_from=self.date_from,
+                date_to=self.date_to,
                 period='day'
             )
             stat_data = self.api_request(statistic)

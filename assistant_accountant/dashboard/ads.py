@@ -19,6 +19,9 @@ from core.my_target.exceptions import (MyTargetExpiredTokenError,
 
 class Ads(ABC):
 
+    def current_date(self):
+        return datetime.now().strftime('%Y-%m-%d')
+
     @abstractmethod
     def get(self) -> List[Dict]:
         ...
@@ -109,7 +112,7 @@ class YandexCollectData(Ads):
             login = account_data['Login']
             self.data[login]['balance'] = {
                 'amount': float(account_data['Amount']),
-                'date': datetime.now().strftime('%Y-%m-%d')
+                'date': self.current_date()
             }
 
     def api_request(self, yandex_api: yandex_direct.BaseApi):
@@ -276,7 +279,11 @@ class MyTargetCollectData(Ads):
                 'name': raw['user']['client_username'],
                 'source': MY_TARGET,
                 'user_id': self.user_id,
-                'client_id': client_id
+                'client_id': client_id,
+                'balance': {
+                    'amount': float(raw['user']['account']['balance']),
+                    'date': self.current_date()
+                }
             }
 
     def prepare_statistic(self, stat_data):

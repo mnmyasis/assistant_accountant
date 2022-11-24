@@ -24,7 +24,7 @@ class Token(CreateModel):
         default_related_name = 'tokens'
 
     def __str__(self):
-        return f'{self.source}/{self.user.username}'
+        return self.source.name
 
 
 class Source(models.Model):
@@ -123,4 +123,4 @@ class StatisticByAgencyClient(models.Model):
         default_related_name = 'statistic_by_agency_clients'
 
     def __str__(self):
-        return self.date
+        return str(self.date)

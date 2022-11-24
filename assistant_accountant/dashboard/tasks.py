@@ -2,21 +2,20 @@ import json
 
 from celery import shared_task
 
-from .ads import (API, YandexCollectData, VKCollectData,
-                  MyTargetCollectData)
+from . import ads
+from .write_ads_data import WriteDB
 
 
-@shared_task(name='agency_clients')
-def agency_clients(user_id: int):
-    date_from = '2022-11-01'
-    date_to = '2022-11-09'
-    yandex = YandexCollectData(user_id, date_from, date_to)
-    vk = VKCollectData(user_id, date_from, date_to)
-    my_target = MyTargetCollectData(user_id, date_from, date_to)
-    cabinets = [yandex, my_target, vk]
-    data = []
-    for cabinet in cabinets:
-        api = API(cabinet)
-        data += api.collect_data_ads()
+@shared_task(name='collect_agency_client_spending')
+def collect_agency_client_spending(user_id: int, date_from: str, date_to: str):
+    """
+    Format date_from, date_to %Y-%d-%m
+    Таска собирает финансовую статистику клиентов агентства из рекламных
+    кабинетов.
+    """
+    data = ads.get(user_id, date_from, date_to)
+    write_db = WriteDB(data)
+    write_db.save()
     print(json.dumps(data, indent=4))
-    return data
+    return (f'task: agency_client\nParameters: \n- user_id: {user_id}\n'
+            f'- date_from: {date_from}\n- date_to: {date_to}')

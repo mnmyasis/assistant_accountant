@@ -11,6 +11,7 @@ from core.vk import ads
 from core.my_target import auth, exceptions
 from core.my_target import ads as my_target_ads
 from . import models
+from . import google_sheets
 
 
 @login_required
@@ -257,3 +258,28 @@ def my_target_test(request):
     return redirect(
         reverse('about:index')
     )
+
+
+def sheets_view(request):
+    credentials = google_sheets.get_credentials(
+        private_key=settings.GOOGLE_SHEETS_PRIVATE_KEY,
+        private_key_id=settings.GOOGLE_SHEETS_PRIVATE_KEY_ID,
+        client_email=settings.GOOGLE_SHEETS_CLIENT_EMAIL,
+        client_id=settings.GOOGLE_SHEETS_CLIENT_ID
+    )
+    ws = google_sheets.WorkSheet.get(
+        'ditexos',
+        'h1',
+        credentials
+    )
+    gs_redactor = google_sheets.Redactor.google_sheets_redactor_by_tag(
+        ws,
+        '#DITEXOS',
+        alphabet=google_sheets.AlphabetGoogleSheets()
+    )
+    columns = [
+        [1, 1, 's', 1, 1],
+        [2, 2, 10, 2, 2]
+    ]
+    gs_redactor.update(columns)
+    print(ws)

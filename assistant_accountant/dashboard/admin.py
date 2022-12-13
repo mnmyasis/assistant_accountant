@@ -44,3 +44,4 @@ class StatisticByAgencyClientAdmin(admin.ModelAdmin):
     list_display = ('date', 'source', 'client')
     list_filter = ('source',)
     search_fields = ('client__name',)
+    ordering = ['client__pk']

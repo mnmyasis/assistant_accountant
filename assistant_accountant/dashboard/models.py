@@ -119,7 +119,6 @@ class StatisticByAgencyClient(models.Model):
 
     class Meta:
         db_table = 'statistic_by_agency_clients'
-        ordering = ['client', 'source', '-date']
         default_related_name = 'statistic_by_agency_clients'
 
     def __str__(self):

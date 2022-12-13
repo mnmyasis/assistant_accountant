@@ -15,4 +15,5 @@ urlpatterns = [
     path('my-target/auth', views.my_target_auth, name='my_target_auth'),
     path('my-target/test', views.my_target_test, name='my_target_test'),
     path('sheet', views.sheets_view, name='sheets_view'),
+    path('test', views.test)
 ]

@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Max, Count, Q, F
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.urls import reverse
@@ -283,3 +284,28 @@ def sheets_view(request):
     ]
     gs_redactor.update(columns)
     print(ws)
+
+
+def test(request):
+    month = '11'
+    client = request.user.agency_clients.select_related(
+        'source'
+    ).all().prefetch_related(
+        'statistic_by_agency_clients'
+    ).prefetch_related(
+        'balance_history'
+    ).filter(
+        balance_history__date__month=month,
+        statistic_by_agency_clients__date__month=month
+    ).annotate(
+        amount_max=Max('balance_history__amount'),
+        cost_max=Max('statistic_by_agency_clients__cost')
+    ).filter(Q(cost_max__gt=0) | Q(amount_max__gt=0)).values(
+        'statistic_by_agency_clients__date__month',
+        'name',
+        'cost_max',
+        'amount_max',
+        month=F('balance_history__date__month'),
+        source_name=F('source__name'),
+    ).order_by('name')
+    return render(request, 'dashboard/index.html', {'res': {}, 'data': client})

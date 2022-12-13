@@ -1,14 +1,41 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard index page{% endblock %}
 {% block content %}
-<div class="row mt-2">
-  <div class="col-12">
-    <a href="{{ yandex_direct_verification_code_url }}"
-       class="btn btn-warning">Yandex direct
-    </a>
-    <a href="{{ vk_ads_auth_url }}" class="btn btn-warning">
-      VK ADS
-    </a>
+  <div class="row mt-2">
+    <div class="col-12">
+      <a href="{{ yandex_direct_verification_code_url }}"
+         class="btn btn-warning">Yandex direct
+      </a>
+      <a href="{{ vk_ads_auth_url }}" class="btn btn-warning">
+        VK ADS
+      </a>
+    </div>
   </div>
-</div>
+  <div class="row mt-5">
+    <div class="col-12 border-dark border p-5">
+      <h1 class="text-center mb-5">Ноябрь</h1>
+      <table class="table">
+        <thead>
+        <tr>
+          <th scope="col">Месяц</th>
+          <th scope="col">Имя</th>
+          <th scope="col">Источник</th>
+          <th scope="col">Расход</th>
+          <th scope="col">Баланс</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for line in data %}
+          <tr>
+            <th scope="row">{{ line.month }}</th>
+            <td>{{ line.name }}</td>
+            <td>{{ line.source_name }}</td>
+            <td>{{ line.cost_max }}</td>
+            <td>{{ line.amount_max }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 {% endblock %}
